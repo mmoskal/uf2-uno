@@ -47,27 +47,32 @@
 
 		#include "Lib/SCSI.h"
 		#include "Lib/DataflashManager.h"
+		#include "Lib/LightweightRingBuff.h"
 		#include "Config/AppConfig.h"
 
 		#include <LUFA/Drivers/Board/LEDs.h>
+		#include <LUFA/Drivers/Peripheral/Serial.h>
 		#include <LUFA/Drivers/USB/USB.h>
 		#include <LUFA/Platform/Platform.h>
 
 	/* Macros: */
-		/** LED mask for the library LED driver, to indicate that the USB interface is not ready. */
-		#define LEDMASK_USB_NOTREADY      LEDS_LED1
+	/** LED mask for the library LED driver, to indicate TX activity. */
+		#define LEDMASK_TX               LEDS_LED1
 
-		/** LED mask for the library LED driver, to indicate that the USB interface is enumerating. */
-		#define LEDMASK_USB_ENUMERATING  (LEDS_LED2 | LEDS_LED3)
-
-		/** LED mask for the library LED driver, to indicate that the USB interface is ready. */
-		#define LEDMASK_USB_READY        (LEDS_LED2 | LEDS_LED4)
-
+		/** LED mask for the library LED driver, to indicate RX activity. */
+		#define LEDMASK_RX               LEDS_LED2
+		
 		/** LED mask for the library LED driver, to indicate that an error has occurred in the USB interface. */
-		#define LEDMASK_USB_ERROR        (LEDS_LED1 | LEDS_LED3)
-
+		#define LEDMASK_ERROR            (LEDS_LED1 | LEDS_LED2)
+		
 		/** LED mask for the library LED driver, to indicate that the USB interface is busy. */
-		#define LEDMASK_USB_BUSY          LEDS_LED2
+		#define LEDMASK_BUSY             (LEDS_LED1 | LEDS_LED2)
+
+		#define LEDMASK_USB_ENUMERATING LEDMASK_BUSY
+		#define LEDMASK_USB_NOTREADY LEDMASK_BUSY
+		#define LEDMASK_USB_READY 0
+		#define LEDMASK_USB_BUSY LEDMASK_BUSY
+		#define LEDMASK_USB_ERROR LEDMASK_ERROR
 
 	/* Function Prototypes: */
 		void SetupHardware(void);

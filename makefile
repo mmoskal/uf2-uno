@@ -13,7 +13,7 @@
 
 MCU          = atmega16u2
 ARCH         = AVR8
-BOARD        = USBKEY
+BOARD        = USER
 F_CPU        = 16000000
 F_USB        = $(F_CPU)
 OPTIMIZATION = s
@@ -22,6 +22,12 @@ SRC          = $(TARGET).c Descriptors.c Lib/DataflashManager.c Lib/SCSI.c $(LUF
 LUFA_PATH    = ../../../../LUFA
 CC_FLAGS     = -DUSE_LUFA_CONFIG_HEADER -IConfig/
 LD_FLAGS     =
+
+CC_FLAGS += -DAVR_RESET_LINE_PORT="PORTD"
+CC_FLAGS += -DAVR_RESET_LINE_DDR="DDRD"
+CC_FLAGS += -DAVR_RESET_LINE_MASK="(1 << 7)"
+CC_FLAGS += -DTX_RX_LED_PULSE_MS=3
+CC_FLAGS += -DPING_PONG_LED_PULSE_MS=100
 
 # Default target
 all:
