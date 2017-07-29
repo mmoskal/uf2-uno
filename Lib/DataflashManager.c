@@ -45,9 +45,9 @@ const uint8_t uf2magic[] PROGMEM = "UF2\nWQ]\x9E";
 #error unsupported page size
 #endif
 
-#define CRC_EOP 0x20             // 'SPACE'
-#define STK_PROG_PAGE 0x64       // 'd'
-#define STK_LOAD_ADDRESS 0x55    // 'U'
+#define CRC_EOP 0x20          // 'SPACE'
+#define STK_PROG_PAGE 0x64    // 'd'
+#define STK_LOAD_ADDRESS 0x55 // 'U'
 
 /** Writes blocks (OS blocks, not Dataflash pages) to the storage medium, the board Dataflash IC(s),
  * from
@@ -102,7 +102,7 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
                 if (buf[8] & 1)
                     state = 0; // UF2 do not flash flag
 
-                addr = *(uint16_t*)(buf + 12);
+                addr = *(uint16_t *)(buf + 12);
                 // STK500 address is in words, not bytes
                 addr >>= 1;
             }
@@ -142,9 +142,9 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
                 for (i = 32; i < 64; ++i)
                     Serial_SendByte(buf[i]);
             }
-			if (bufno == 4) {
+            if (bufno == 4) {
                 Serial_SendByte(CRC_EOP);
-			}
+            }
         }
 
         /* Decrement the blocks remaining counter */
@@ -154,6 +154,134 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
     /* If the endpoint is empty, clear it ready for the next packet from the host */
     if (!(Endpoint_IsReadWriteAllowed()))
         Endpoint_ClearOUT();
+}
+
+typedef struct {
+    uint8_t JumpInstruction[3];
+    uint8_t OEMInfo[8];
+    uint16_t SectorSize;
+    uint8_t SectorsPerCluster;
+    uint16_t ReservedSectors;
+    uint8_t FATCopies;
+    uint16_t RootDirectoryEntries;
+    uint16_t TotalSectors16;
+    uint8_t MediaDescriptor;
+    uint16_t SectorsPerFAT;
+    uint16_t SectorsPerTrack;
+    uint16_t Heads;
+    uint32_t HiddenSectors;
+    uint32_t TotalSectors32;
+    uint8_t PhysicalDriveNum;
+    uint8_t Reserved;
+    uint8_t ExtendedBootSig;
+    uint32_t VolumeSerialNumber;
+    char VolumeLabel[11];
+    uint8_t FilesystemIdentifier[8];
+} __attribute__((packed)) FAT_BootBlock;
+
+typedef struct {
+    char name[8];
+    char ext[3];
+    uint8_t attrs;
+    uint8_t reserved;
+    uint8_t createTimeFine;
+    uint16_t createTime;
+    uint16_t createDate;
+    uint16_t lastAccessDate;
+    uint16_t highStartCluster;
+    uint16_t updateTime;
+    uint16_t updateDate;
+    uint16_t startCluster;
+    uint32_t size;
+} __attribute__((packed)) DirEntry;
+
+struct TextFile {
+    const char name[11];
+    const char *content;
+};
+
+#define STR0(x) #x
+#define STR(x) STR0(x)
+const char infoUf2File[] PROGMEM = //
+    "UF2 Bootloader " UF2_VERSION "\r\n"
+    "Model: " PRODUCT_NAME "\r\n"
+    "Board-ID: " BOARD_ID "\r\n";
+
+const char indexFile[] PROGMEM = //
+    "<!doctype html>\n"
+    "<html>"
+    "<body>"
+    "<script>\n"
+    "location.replace(\"" INDEX_URL "\");\n"
+    "</script>"
+    "</body>"
+    "</html>\n";
+
+static const struct TextFile info[] PROGMEM = {
+    {.name = "INFO_UF2TXT", .content = infoUf2File}, //
+    {.name = "INDEX   HTM", .content = indexFile},
+};
+
+#define NUM_INFO (sizeof(info) / sizeof(info[0]))
+
+#define NUM_FAT_BLOCKS VIRTUAL_MEMORY_BLOCKS
+
+#define RESERVED_SECTORS 1
+#define ROOT_DIR_SECTORS 4
+#define SECTORS_PER_FAT ((NUM_FAT_BLOCKS * 2 + 511) / 512)
+
+#define START_FAT0 RESERVED_SECTORS
+#define START_FAT1 (START_FAT0 + SECTORS_PER_FAT)
+#define START_ROOTDIR (START_FAT1 + SECTORS_PER_FAT)
+#define START_CLUSTERS (START_ROOTDIR + ROOT_DIR_SECTORS)
+
+static const FAT_BootBlock BootBlock PROGMEM = {
+    .JumpInstruction = {0xeb, 0x3c, 0x90},
+    .OEMInfo = "UF2 UF2 ",
+    .SectorSize = 512,
+    .SectorsPerCluster = 1,
+    .ReservedSectors = RESERVED_SECTORS,
+    .FATCopies = 2,
+    .RootDirectoryEntries = (ROOT_DIR_SECTORS * 512 / 32),
+    .TotalSectors16 = NUM_FAT_BLOCKS - 2,
+    .MediaDescriptor = 0xF8,
+    .SectorsPerFAT = SECTORS_PER_FAT,
+    .SectorsPerTrack = 1,
+    .Heads = 1,
+    .ExtendedBootSig = 0x29,
+    .VolumeSerialNumber = 0x00420042,
+    .VolumeLabel = VOLUME_LABEL,
+    .FilesystemIdentifier = "FAT16   ",
+};
+
+void write_from_pgm(const void *src, uint16_t count) {
+    while (count--) {
+        Endpoint_Write_8(pgm_read_byte(src));
+        src = (char *)src + 1;
+    }
+}
+
+void write_from_data(const void *src, uint16_t count) {
+    while (count--) {
+        Endpoint_Write_8(*(uint8_t *)src);
+        src = (char *)src + 1;
+    }
+}
+
+void write_zeros(uint16_t count) {
+    while (count--) {
+        Endpoint_Write_8(0);
+    }
+}
+
+void padded_memcpy(char *dst, const char *src, int len) {
+    for (int i = 0; i < len; ++i) {
+        if (*src)
+            *dst = pgm_read_byte(src++);
+        else
+            *dst = ' ';
+        dst++;
+    }
 }
 
 /** Reads blocks (OS blocks, not Dataflash pages) from the storage medium, the board Dataflash
@@ -168,87 +296,88 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
  *  \param[in] TotalBlocks   Number of blocks of data to read
  */
 void DataflashManager_ReadBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceInfo,
-                                 const uint32_t BlockAddress, uint16_t TotalBlocks) {
-#if 0
+                                 uint32_t block_no, uint16_t TotalBlocks) {
 
-	/* Wait until endpoint is ready before continuing */
-	if (Endpoint_WaitUntilReady())
-	  return;
+    uint16_t i, sectionIdx;
 
-	while (TotalBlocks)
-	{
-		uint8_t BytesInBlockDiv16 = 0;
+    /* Wait until endpoint is ready before continuing */
+    if (Endpoint_WaitUntilReady())
+        return;
 
-		/* Read an endpoint packet sized data block from the Dataflash */
-		while (BytesInBlockDiv16 < (VIRTUAL_MEMORY_BLOCK_SIZE >> 4))
-		{
-			/* Check if the endpoint is currently full */
-			if (!(Endpoint_IsReadWriteAllowed()))
-			{
-				/* Clear the endpoint bank to send its contents to the host */
-				Endpoint_ClearIN();
+    while (TotalBlocks) {
+        /* Check if the endpoint is currently full */
+        if (!(Endpoint_IsReadWriteAllowed())) {
+            /* Clear the endpoint bank to send its contents to the host */
+            Endpoint_ClearIN();
 
-				/* Wait until the endpoint is ready for more data */
-				if (Endpoint_WaitUntilReady())
-				  return;
-			}
+            /* Wait until the endpoint is ready for more data */
+            if (Endpoint_WaitUntilReady())
+                return;
+        }
 
-			/* Check if end of Dataflash page reached */
-			if (CurrDFPageByteDiv16 == (DATAFLASH_PAGE_SIZE >> 4))
-			{
-				/* Reset the Dataflash buffer counter, increment the page counter */
-				CurrDFPageByteDiv16 = 0;
-				CurrDFPage++;
+		sectionIdx = block_no;
 
-				/* Select the next Dataflash chip based on the new Dataflash page index */
-				Dataflash_SelectChipFromPage(CurrDFPage);
+        if (block_no == 0) {
+            write_from_pgm(&BootBlock, sizeof(BootBlock));
+            write_zeros(512 - sizeof(BootBlock) - 2);
+            Endpoint_Write_8(0x55);
+            Endpoint_Write_8(0xaa);
+        } else if (block_no < START_ROOTDIR) {
+            sectionIdx -= START_FAT0;
+            // logval("sidx", sectionIdx);
+            if (sectionIdx >= SECTORS_PER_FAT)
+                sectionIdx -= SECTORS_PER_FAT;
+            i = 0;
+            if (sectionIdx == 0) {
+                Endpoint_Write_8(0xf0);
+                for (; i < 4 + NUM_INFO * 2; ++i)
+                    Endpoint_Write_8(0xff);
+            }
+            for (; i < 512; ++i)
+                Endpoint_Write_8(0x00);
+        } else if (block_no < START_CLUSTERS) {
+            sectionIdx -= START_ROOTDIR;
+            if (sectionIdx == 0) {
+                DirEntry d;
+                memset(&d, 0, sizeof(d));
+                padded_memcpy(d.name, BootBlock.VolumeLabel, 11);
+                d.attrs = 0x28;
+                write_from_data(&d, sizeof(d));
+                for (i = 0; i < NUM_INFO; ++i) {
+                    const struct TextFile *inf = &info[i];
+                    memset(&d, 0, sizeof(d));
+                    d.size = strlen_P(inf->content);
+                    d.startCluster = i + 2;
+                    padded_memcpy(d.name, inf->name, 11);
+                    write_from_data(&d, sizeof(d));
+                }
+                write_zeros(512 - (NUM_INFO + 1) * 32);
+            } else {
+                write_zeros(512);
+            }
+        } else {
+            sectionIdx -= START_CLUSTERS;
+            if (sectionIdx < NUM_INFO - 1) {
+                i = strlen_P(info[sectionIdx].content);
+                write_from_pgm(info[sectionIdx].content, i);
+                write_zeros(512 - i);
+            } else {
+                write_zeros(512);
+            }
+        }
 
-				/* Send the Dataflash main memory page read command */
-				Dataflash_SendByte(DF_CMD_MAINMEMPAGEREAD);
-				Dataflash_SendAddressBytes(CurrDFPage, 0);
-				Dataflash_SendByte(0x00);
-				Dataflash_SendByte(0x00);
-				Dataflash_SendByte(0x00);
-				Dataflash_SendByte(0x00);
-			}
+        /* Check if the current command is being aborted by the host */
+        if (MSInterfaceInfo->State.IsMassStoreReset)
+            return;
 
-			/* Read one 16-byte chunk of data from the Dataflash */
-			Endpoint_Write_8(Dataflash_ReceiveByte());
-			Endpoint_Write_8(Dataflash_ReceiveByte());
-			Endpoint_Write_8(Dataflash_ReceiveByte());
-			Endpoint_Write_8(Dataflash_ReceiveByte());
-			Endpoint_Write_8(Dataflash_ReceiveByte());
-			Endpoint_Write_8(Dataflash_ReceiveByte());
-			Endpoint_Write_8(Dataflash_ReceiveByte());
-			Endpoint_Write_8(Dataflash_ReceiveByte());
-			Endpoint_Write_8(Dataflash_ReceiveByte());
-			Endpoint_Write_8(Dataflash_ReceiveByte());
-			Endpoint_Write_8(Dataflash_ReceiveByte());
-			Endpoint_Write_8(Dataflash_ReceiveByte());
-			Endpoint_Write_8(Dataflash_ReceiveByte());
-			Endpoint_Write_8(Dataflash_ReceiveByte());
-			Endpoint_Write_8(Dataflash_ReceiveByte());
-			Endpoint_Write_8(Dataflash_ReceiveByte());
+        /* Decrement the blocks remaining counter */
+        TotalBlocks--;
+        block_no++;
+    }
 
-			/* Increment the Dataflash page 16 byte block counter */
-			CurrDFPageByteDiv16++;
-
-			/* Increment the block 16 byte block counter */
-			BytesInBlockDiv16++;
-
-			/* Check if the current command is being aborted by the host */
-			if (MSInterfaceInfo->State.IsMassStoreReset)
-			  return;
-		}
-
-		/* Decrement the blocks remaining counter */
-		TotalBlocks--;
-	}
-
-	/* If the endpoint is full, send its contents to the host */
-	if (!(Endpoint_IsReadWriteAllowed()))
-	  Endpoint_ClearIN();
-#endif
+    /* If the endpoint is full, send its contents to the host */
+    if (!(Endpoint_IsReadWriteAllowed()))
+        Endpoint_ClearIN();
 }
 
 /** Disables the Dataflash memory write protection bits on the board Dataflash ICs, if enabled. */

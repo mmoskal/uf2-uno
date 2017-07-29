@@ -82,5 +82,12 @@
 		void EVENT_USB_Device_ConfigurationChanged(void);
 		void EVENT_USB_Device_ControlRequest(void);
 
+
+#define UF2_VERSION "v0.0.0"
+#define PRODUCT_NAME "Arduino Uno"
+#define BOARD_ID "ATmega328p-Uno-r3"
+#define VOLUME_LABEL "UNOBOOT"
+#define INDEX_URL "https://pxt.io"
+
 #endif
 
