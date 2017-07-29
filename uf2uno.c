@@ -91,11 +91,6 @@ USB_ClassInfo_MS_Device_t Disk_MS_Interface =
 			},
 	};
 
-/** Standard file stream for the CDC interface when set up, so that the virtual CDC COM port can be
- *  used like any regular character stream in the C APIs.
- */
-static FILE USBSerialStream;
-
 /** Circular buffer to hold data from the host before it is sent to the device via the serial port. */
 RingBuff_t USBtoUSART_Buffer;
 
@@ -120,9 +115,6 @@ int main(void)
 
 	RingBuffer_InitBuffer(&USBtoUSART_Buffer);
 	RingBuffer_InitBuffer(&USARTtoUSB_Buffer);
-
-	/* Create a regular character stream for the interface so that it can be used with the stdio.h functions */
-	CDC_Device_CreateStream(&VirtualSerial_CDC_Interface, &USBSerialStream);
 
 	LEDs_SetAllLEDs(LEDMASK_ERROR);
 	GlobalInterruptEnable();
@@ -212,40 +204,6 @@ void SetupHardware(void)
 	AVR_RESET_LINE_PORT |= AVR_RESET_LINE_MASK;
 	AVR_RESET_LINE_DDR  |= AVR_RESET_LINE_MASK;
 }
-
-#if 0
-/** Checks for changes in the position of the board joystick, sending strings to the host upon each change. */
-void CheckJoystickMovement(void)
-{
-	uint8_t     JoyStatus_LCL = Joystick_GetStatus();
-	char*       ReportString  = NULL;
-	static bool ActionSent    = false;
-
-	if (JoyStatus_LCL & JOY_UP)
-	  ReportString = "Joystick Up\r\n";
-	else if (JoyStatus_LCL & JOY_DOWN)
-	  ReportString = "Joystick Down\r\n";
-	else if (JoyStatus_LCL & JOY_LEFT)
-	  ReportString = "Joystick Left\r\n";
-	else if (JoyStatus_LCL & JOY_RIGHT)
-	  ReportString = "Joystick Right\r\n";
-	else if (JoyStatus_LCL & JOY_PRESS)
-	  ReportString = "Joystick Pressed\r\n";
-	else
-	  ActionSent = false;
-
-	if ((ReportString != NULL) && (ActionSent == false))
-	{
-		ActionSent = true;
-
-		/* Write the string to the virtual COM port via the created character stream */
-		fputs(ReportString, &USBSerialStream);
-
-		/* Alternatively, without the stream: */
-		// CDC_Device_SendString(&VirtualSerial_CDC_Interface, ReportString);
-	}
-}
-#endif 
 
 /** Event handler for the library USB Connection event. */
 void EVENT_USB_Device_Connect(void)
