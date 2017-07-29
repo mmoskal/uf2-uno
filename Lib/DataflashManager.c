@@ -197,16 +197,18 @@ typedef struct {
 
 struct TextFile {
     const char name[11];
-    const char *content;
 };
 
 #define STR0(x) #x
 #define STR(x) STR0(x)
+
+const char infoUf2Name[] PROGMEM = "INFO_UF2TXT";
 const char infoUf2File[] PROGMEM = //
     "UF2 Bootloader " UF2_VERSION "\r\n"
     "Model: " PRODUCT_NAME "\r\n"
     "Board-ID: " BOARD_ID "\r\n";
 
+const char indexName[] PROGMEM = "INDEX   HTM";
 const char indexFile[] PROGMEM = //
     "<!doctype html>\n"
     "<html>"
@@ -217,12 +219,16 @@ const char indexFile[] PROGMEM = //
     "</body>"
     "</html>\n";
 
-static const struct TextFile info[] PROGMEM = {
-    {.name = "INFO_UF2TXT", .content = infoUf2File}, //
-    {.name = "INDEX   HTM", .content = indexFile},
-};
+// yeah... seriously - avr-gcc has trouble with arrays
+static const char* getFileData(uint8_t idx, uint8_t tp) {
+	switch (idx){
+		case 0: return tp ? infoUf2File : infoUf2Name;
+		case 1: return tp ? indexFile : indexName;
+		default: return 0;
+	}
+}
 
-#define NUM_INFO (sizeof(info) / sizeof(info[0]))
+#define NUM_INFO 2
 
 #define NUM_FAT_BLOCKS VIRTUAL_MEMORY_BLOCKS
 
@@ -254,32 +260,37 @@ static const FAT_BootBlock BootBlock PROGMEM = {
     .FilesystemIdentifier = "FAT16   ",
 };
 
-void write_from_pgm(const void *src, uint16_t count) {
-    while (count--) {
-        Endpoint_Write_8(pgm_read_byte(src));
-        src = (char *)src + 1;
+static void write_byte(uint8_t b) { Endpoint_Write_Stream_LE(&b, 1, NULL); }
+
+static void write_from_data(const void *src, uint16_t count) {
+    Endpoint_Write_Stream_LE(src, count, NULL);
+}
+
+static void write_from_pgm(const void *src0, uint16_t count) {
+    uint8_t buf[16];
+    const uint8_t *src = src0;
+    while (count > 0) {
+        uint8_t len = count > sizeof(buf) ? sizeof(buf) : count;
+        for (uint8_t i = 0; i < len; ++i) {
+            buf[i] = pgm_read_byte(src);
+            src++;
+        }
+        count -= len;
+        write_from_data(buf, len);
     }
 }
 
-void write_from_data(const void *src, uint16_t count) {
-    while (count--) {
-        Endpoint_Write_8(*(uint8_t *)src);
-        src = (char *)src + 1;
-    }
-}
+static void write_zeros(uint16_t count) { Endpoint_Null_Stream(count, NULL); }
 
-void write_zeros(uint16_t count) {
-    while (count--) {
-        Endpoint_Write_8(0);
-    }
-}
-
-void padded_memcpy(char *dst, const char *src, int len) {
+static void padded_memcpy(char *dst, const char *src, int len) {
     for (int i = 0; i < len; ++i) {
-        if (*src)
-            *dst = pgm_read_byte(src++);
-        else
+        int ch = pgm_read_byte(src);
+        if (ch) {
+            *dst = ch;
+            src++;
+        } else {
             *dst = ' ';
+        }
         dst++;
     }
 }
@@ -315,15 +326,15 @@ void DataflashManager_ReadBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceInf
                 return;
         }
 
-		sectionIdx = block_no;
+        sectionIdx = block_no;
 
-		block_no = 1000; // only zeros for now
+        // block_no = 1000; // only zeros for now
 
         if (block_no == 0) {
             write_from_pgm(&BootBlock, sizeof(BootBlock));
             write_zeros(512 - sizeof(BootBlock) - 2);
-            Endpoint_Write_8(0x55);
-            Endpoint_Write_8(0xaa);
+            write_byte(0x55);
+            write_byte(0xaa);
         } else if (block_no < START_ROOTDIR) {
             sectionIdx -= START_FAT0;
             // logval("sidx", sectionIdx);
@@ -331,12 +342,11 @@ void DataflashManager_ReadBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceInf
                 sectionIdx -= SECTORS_PER_FAT;
             i = 0;
             if (sectionIdx == 0) {
-                Endpoint_Write_8(0xf0);
-                for (; i < 4 + NUM_INFO * 2; ++i)
-                    Endpoint_Write_8(0xff);
+                write_byte(0xf0);
+                for (i = 1; i < 4 + NUM_INFO * 2; ++i)
+                    write_byte(0xff);
             }
-            for (; i < 512; ++i)
-                Endpoint_Write_8(0x00);
+            write_zeros(512 - i);
         } else if (block_no < START_CLUSTERS) {
             sectionIdx -= START_ROOTDIR;
             if (sectionIdx == 0) {
@@ -346,11 +356,10 @@ void DataflashManager_ReadBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceInf
                 d.attrs = 0x28;
                 write_from_data(&d, sizeof(d));
                 for (i = 0; i < NUM_INFO; ++i) {
-                    const struct TextFile *inf = &info[i];
                     memset(&d, 0, sizeof(d));
-                    d.size = strlen_P(inf->content);
+                    d.size = strlen_P(getFileData(i, 1));
                     d.startCluster = i + 2;
-                    padded_memcpy(d.name, inf->name, 11);
+                    padded_memcpy(d.name, getFileData(i, 0), 11);
                     write_from_data(&d, sizeof(d));
                 }
                 write_zeros(512 - (NUM_INFO + 1) * 32);
@@ -359,9 +368,9 @@ void DataflashManager_ReadBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceInf
             }
         } else {
             sectionIdx -= START_CLUSTERS;
-            if (sectionIdx < NUM_INFO - 1) {
-                i = strlen_P(info[sectionIdx].content);
-                write_from_pgm(info[sectionIdx].content, i);
+            if (sectionIdx < NUM_INFO) {
+                i = strlen_P(getFileData(sectionIdx, 1));
+                write_from_pgm(getFileData(sectionIdx, 1), i);
                 write_zeros(512 - i);
             } else {
                 write_zeros(512);

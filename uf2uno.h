@@ -68,8 +68,8 @@
 		/** LED mask for the library LED driver, to indicate that the USB interface is busy. */
 		#define LEDMASK_BUSY             (LEDS_LED1 | LEDS_LED2)
 
-		#define LEDMASK_ENUMERATING 0
-		#define LEDMASK_NOTREADY 0
+		#define LEDMASK_ENUMERATING LEDMASK_RX
+		#define LEDMASK_NOTREADY (LEDS_LED1 | LEDS_LED2)
 		#define LEDMASK_READY 0
 
 	/* Function Prototypes: */
@@ -84,7 +84,7 @@
 #define UF2_VERSION "v0.0.0"
 #define PRODUCT_NAME "Arduino Uno"
 #define BOARD_ID "ATmega328p-Uno-r3"
-#define VOLUME_LABEL "UNOBOOT"
+#define VOLUME_LABEL "UNO BOOT"
 #define INDEX_URL "https://pxt.io"
 
 #endif
