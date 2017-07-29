@@ -230,7 +230,9 @@ ISR(USART1_RX_vect, ISR_BLOCK)
 {
 	uint8_t ReceivedByte = UDR1;
 
-	if (USB_DeviceState == DEVICE_STATE_Configured)
-	  RingBuffer_Insert(&USARTtoUSB_Buffer, ReceivedByte);
+	if (USB_DeviceState == DEVICE_STATE_Configured){
+	    LEDs_TurnOnLEDs(LEDMASK_RX);
+ 		RingBuffer_Insert(&USARTtoUSB_Buffer, ReceivedByte);
+	}
 }
 

@@ -55,7 +55,7 @@ static void targetReset(void) {
     AVR_RESET_LINE_PORT &= ~AVR_RESET_LINE_MASK;
     _delay_ms(10);
     AVR_RESET_LINE_PORT |= AVR_RESET_LINE_MASK;
-    _delay_ms(50);
+    _delay_ms(1500);
 }
 
 /** Writes blocks (OS blocks, not Dataflash pages) to the storage medium, the board Dataflash IC(s),
@@ -120,7 +120,6 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
                 continue;
 
             if (numBlocksWritten == 0) {
-                LEDs_TurnOnLEDs(LEDMASK_RX);
                 targetReset();
             }
             if (bufno == 0)
@@ -346,8 +345,6 @@ void DataflashManager_ReadBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceInf
         }
 
         sectionIdx = block_no;
-
-        // block_no = 1000; // only zeros for now
 
         if (block_no == 0) {
             write_from_pgm(&BootBlock, sizeof(BootBlock));
