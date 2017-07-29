@@ -112,8 +112,6 @@ int main(void)
 
 	for (;;)
 	{
-		CheckJoystickMovement();
-
 		/* Must throw away unused bytes from the host, or it will lock up while waiting for the device */
 		CDC_Device_ReceiveByte(&VirtualSerial_CDC_Interface);
 
@@ -147,8 +145,6 @@ void SetupHardware(void)
 
 	/* Hardware Initialization */
 	LEDs_Init();
-	Joystick_Init();
-	Dataflash_Init();
 	USB_Init();
 
 	/* Check if the Dataflash is working, abort if not */
@@ -162,6 +158,7 @@ void SetupHardware(void)
 	DataflashManager_ResetDataflashProtections();
 }
 
+#if 0
 /** Checks for changes in the position of the board joystick, sending strings to the host upon each change. */
 void CheckJoystickMovement(void)
 {
@@ -193,6 +190,7 @@ void CheckJoystickMovement(void)
 		// CDC_Device_SendString(&VirtualSerial_CDC_Interface, ReportString);
 	}
 }
+#endif 
 
 /** Event handler for the library USB Connection event. */
 void EVENT_USB_Device_Connect(void)

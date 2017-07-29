@@ -45,16 +45,8 @@
 
 		#include <LUFA/Common/Common.h>
 		#include <LUFA/Drivers/USB/USB.h>
-		#include <LUFA/Drivers/Board/Dataflash.h>
-
-	/* Preprocessor Checks: */
-		#if (DATAFLASH_PAGE_SIZE % 16)
-			#error Dataflash page size must be a multiple of 16 bytes.
-		#endif
 
 	/* Defines: */
-		/** Total number of bytes of the storage medium, comprised of one or more Dataflash ICs. */
-		#define VIRTUAL_MEMORY_BYTES                ((uint32_t)DATAFLASH_PAGES * DATAFLASH_PAGE_SIZE * DATAFLASH_TOTALCHIPS)
 
 		/** Block size of the device. This is kept at 512 to remain compatible with the OS despite the underlying
 		 *  storage media (Dataflash) using a different native block size. Do not change this value.
@@ -64,7 +56,7 @@
 		/** Total number of blocks of the virtual memory for reporting to the host as the device's total capacity. Do not
 		 *  change this value; change VIRTUAL_MEMORY_BYTES instead to alter the media size.
 		 */
-		#define VIRTUAL_MEMORY_BLOCKS               (VIRTUAL_MEMORY_BYTES / VIRTUAL_MEMORY_BLOCK_SIZE)
+		#define VIRTUAL_MEMORY_BLOCKS               8000
 
 		/** Blocks in each LUN, calculated from the total capacity divided by the total number of Logical Units in the device. */
 		#define LUN_MEDIA_BLOCKS         (VIRTUAL_MEMORY_BLOCKS / TOTAL_LUNS)
@@ -76,12 +68,6 @@
 		void DataflashManager_ReadBlocks(USB_ClassInfo_MS_Device_t* const MSInterfaceInfo,
 		                                 const uint32_t BlockAddress,
 		                                 uint16_t TotalBlocks);
-		void DataflashManager_WriteBlocks_RAM(const uint32_t BlockAddress,
-		                                      uint16_t TotalBlocks,
-		                                      uint8_t* BufferPtr) ATTR_NON_NULL_PTR_ARG(3);
-		void DataflashManager_ReadBlocks_RAM(const uint32_t BlockAddress,
-		                                     uint16_t TotalBlocks,
-		                                     uint8_t* BufferPtr) ATTR_NON_NULL_PTR_ARG(3);
 		void DataflashManager_ResetDataflashProtections(void);
 		bool DataflashManager_CheckDataflashOperation(void);
 
