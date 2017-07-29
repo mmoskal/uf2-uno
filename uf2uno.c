@@ -111,8 +111,6 @@ volatile struct
 } PulseMSRemaining;
 
 
-
-
 /** Main program entry point. This routine contains the overall program flow, including initial
  *  setup of all components and the main program loop.
  */
@@ -123,8 +121,6 @@ int main(void)
 	RingBuffer_InitBuffer(&USBtoUSART_Buffer);
 	RingBuffer_InitBuffer(&USARTtoUSB_Buffer);
 
-	sei();
-
 	/* Create a regular character stream for the interface so that it can be used with the stdio.h functions */
 	CDC_Device_CreateStream(&VirtualSerial_CDC_Interface, &USBSerialStream);
 
@@ -133,9 +129,48 @@ int main(void)
 
 	for (;;)
 	{
-		/* Must throw away unused bytes from the host, or it will lock up while waiting for the device */
-		CDC_Device_ReceiveByte(&VirtualSerial_CDC_Interface);
+		/* Only try to read in bytes from the CDC interface if the transmit buffer is not full */
+		if (!(RingBuffer_IsFull(&USBtoUSART_Buffer)))
+		{
+			int16_t ReceivedByte = CDC_Device_ReceiveByte(&VirtualSerial_CDC_Interface);
 
+			/* Read bytes from the USB OUT endpoint into the USART transmit buffer */
+			if (!(ReceivedByte < 0))
+			  RingBuffer_Insert(&USBtoUSART_Buffer, ReceivedByte);
+		}
+		
+		/* Check if the UART receive buffer flush timer has expired or the buffer is nearly full */
+		RingBuff_Count_t BufferCount = RingBuffer_GetCount(&USARTtoUSB_Buffer);
+		if ((TIFR0 & (1 << TOV0)) || (BufferCount > BUFFER_NEARLY_FULL))
+		{
+			TIFR0 |= (1 << TOV0);
+
+			if (USARTtoUSB_Buffer.Count) {
+				LEDs_TurnOnLEDs(LEDMASK_TX);
+				PulseMSRemaining.TxLEDPulse = TX_RX_LED_PULSE_MS;
+			}
+
+			/* Read bytes from the USART receive buffer into the USB IN endpoint */
+			while (BufferCount--)
+			  CDC_Device_SendByte(&VirtualSerial_CDC_Interface, RingBuffer_Remove(&USARTtoUSB_Buffer));
+			  
+			/* Turn off TX LED(s) once the TX pulse period has elapsed */
+			if (PulseMSRemaining.TxLEDPulse && !(--PulseMSRemaining.TxLEDPulse))
+			  LEDs_TurnOffLEDs(LEDMASK_TX);
+
+			/* Turn off RX LED(s) once the RX pulse period has elapsed */
+			if (PulseMSRemaining.RxLEDPulse && !(--PulseMSRemaining.RxLEDPulse))
+			  LEDs_TurnOffLEDs(LEDMASK_RX);
+		}
+		
+		/* Load the next byte from the USART transmit buffer into the USART */
+		if (!(RingBuffer_IsEmpty(&USBtoUSART_Buffer))) {
+		  Serial_SendByte(RingBuffer_Remove(&USBtoUSART_Buffer));
+		  	
+		  	LEDs_TurnOnLEDs(LEDMASK_RX);
+			PulseMSRemaining.RxLEDPulse = TX_RX_LED_PULSE_MS;
+		}
+	
 		CDC_Device_USBTask(&VirtualSerial_CDC_Interface);
 		MS_Device_USBTask(&Disk_MS_Interface);
 		USB_USBTask();
