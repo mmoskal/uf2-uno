@@ -317,6 +317,8 @@ void DataflashManager_ReadBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceInf
 
 		sectionIdx = block_no;
 
+		block_no = 1000; // only zeros for now
+
         if (block_no == 0) {
             write_from_pgm(&BootBlock, sizeof(BootBlock));
             write_zeros(512 - sizeof(BootBlock) - 2);

@@ -32,6 +32,18 @@ CC_FLAGS += -DPING_PONG_LED_PULSE_MS=100
 # Default target
 all:
 
+DPROG = dfu-programmer $(MCU)
+
+recover:
+	$(DPROG) erase
+	$(DPROG) flash tmp/Genuino-usbserial-atmega16u2-Uno-R3.hex
+
+burn: all
+	$(DPROG) erase || :
+	$(DPROG) flash $(TARGET).hex
+
+b: burn
+
 # Include LUFA-specific DMBS extension modules
 DMBS_LUFA_PATH ?= $(LUFA_PATH)/Build/LUFA
 include $(DMBS_LUFA_PATH)/lufa-sources.mk

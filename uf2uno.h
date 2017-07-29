@@ -68,11 +68,9 @@
 		/** LED mask for the library LED driver, to indicate that the USB interface is busy. */
 		#define LEDMASK_BUSY             (LEDS_LED1 | LEDS_LED2)
 
-		#define LEDMASK_USB_ENUMERATING LEDMASK_BUSY
-		#define LEDMASK_USB_NOTREADY LEDMASK_BUSY
-		#define LEDMASK_USB_READY 0
-		#define LEDMASK_USB_BUSY LEDMASK_BUSY
-		#define LEDMASK_USB_ERROR LEDMASK_ERROR
+		#define LEDMASK_ENUMERATING 0
+		#define LEDMASK_NOTREADY 0
+		#define LEDMASK_READY 0
 
 	/* Function Prototypes: */
 		void SetupHardware(void);

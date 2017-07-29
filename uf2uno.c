@@ -208,13 +208,13 @@ void SetupHardware(void)
 /** Event handler for the library USB Connection event. */
 void EVENT_USB_Device_Connect(void)
 {
-	LEDs_SetAllLEDs(LEDMASK_USB_ENUMERATING);
+	LEDs_SetAllLEDs(LEDMASK_ENUMERATING);
 }
 
 /** Event handler for the library USB Disconnection event. */
 void EVENT_USB_Device_Disconnect(void)
 {
-	LEDs_SetAllLEDs(LEDMASK_USB_NOTREADY);
+	LEDs_SetAllLEDs(LEDMASK_NOTREADY);
 }
 
 /** Event handler for the library USB Configuration Changed event. */
@@ -224,8 +224,7 @@ void EVENT_USB_Device_ConfigurationChanged(void)
 
 	ConfigSuccess &= CDC_Device_ConfigureEndpoints(&VirtualSerial_CDC_Interface);
 	ConfigSuccess &= MS_Device_ConfigureEndpoints(&Disk_MS_Interface);
-
-	LEDs_SetAllLEDs(ConfigSuccess ? LEDMASK_USB_READY : LEDMASK_USB_ERROR);
+	LEDs_SetAllLEDs(ConfigSuccess ? LEDMASK_READY : LEDMASK_ERROR);
 }
 
 /** Event handler for the library USB Control Request reception event. */
@@ -243,9 +242,9 @@ bool CALLBACK_MS_Device_SCSICommandReceived(USB_ClassInfo_MS_Device_t* const MSI
 {
 	bool CommandSuccess;
 
-	LEDs_SetAllLEDs(LEDMASK_USB_BUSY);
+	LEDs_SetAllLEDs(LEDMASK_BUSY);
 	CommandSuccess = SCSI_DecodeSCSICommand(MSInterfaceInfo);
-	LEDs_SetAllLEDs(LEDMASK_USB_READY);
+	LEDs_SetAllLEDs(LEDMASK_READY);
 
 	return CommandSuccess;
 }
