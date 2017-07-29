@@ -36,133 +36,139 @@
  *  as a SD card or EEPROM), functions similar to these will need to be generated.
  */
 
-#define  INCLUDE_FROM_DATAFLASHMANAGER_C
+#define INCLUDE_FROM_DATAFLASHMANAGER_C
 #include "DataflashManager.h"
 
-/** Writes blocks (OS blocks, not Dataflash pages) to the storage medium, the board Dataflash IC(s), from
- *  the pre-selected data OUT endpoint. This routine reads in OS sized blocks from the endpoint and writes
+const uint8_t uf2magic[] PROGMEM = "UF2\nWQ]\x9E";
+
+#if SPM_PAGESIZE != 128
+#error unsupported page size
+#endif
+
+#define CRC_EOP 0x20             // 'SPACE'
+#define STK_PROG_PAGE 0x64       // 'd'
+#define STK_LOAD_ADDRESS 0x55    // 'U'
+
+/** Writes blocks (OS blocks, not Dataflash pages) to the storage medium, the board Dataflash IC(s),
+ * from
+ *  the pre-selected data OUT endpoint. This routine reads in OS sized blocks from the endpoint and
+ * writes
  *  them to the Dataflash in Dataflash page sized blocks.
  *
- *  \param[in] MSInterfaceInfo  Pointer to a structure containing a Mass Storage Class configuration and state
+ *  \param[in] MSInterfaceInfo  Pointer to a structure containing a Mass Storage Class configuration
+ * and state
  *  \param[in] BlockAddress  Data block starting address for the write sequence
  *  \param[in] TotalBlocks   Number of blocks of data to write
  */
-void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t* const MSInterfaceInfo,
-                                  const uint32_t BlockAddress,
-                                  uint16_t TotalBlocks)
-{
-	#if 0
-	/* Wait until endpoint is ready before continuing */
-	if (Endpoint_WaitUntilReady())
-	  return;
+void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceInfo,
+                                  const uint32_t BlockAddress, uint16_t TotalBlocks) {
+    uint8_t buf[64];
+    uint8_t state = 0;
+    uint16_t addr = 0;
+    uint8_t i;
 
-	while (TotalBlocks)
-	{
-		uint8_t BytesInBlockDiv16 = 0;
+    /* Wait until endpoint is ready before continuing */
+    if (Endpoint_WaitUntilReady())
+        return;
 
-		/* Write an endpoint packet sized data block to the Dataflash */
-		while (BytesInBlockDiv16 < (VIRTUAL_MEMORY_BLOCK_SIZE >> 4))
-		{
-			/* Check if the endpoint is currently empty */
-			if (!(Endpoint_IsReadWriteAllowed()))
-			{
-				/* Clear the current endpoint bank */
-				Endpoint_ClearOUT();
+    while (TotalBlocks) {
 
-				/* Wait until the host has sent another packet */
-				if (Endpoint_WaitUntilReady())
-				  return;
+        for (uint8_t bufno = 0; bufno < 512 / 64; ++bufno) {
+            /* Check if the endpoint is currently empty */
+            if (!(Endpoint_IsReadWriteAllowed())) {
+                /* Clear the current endpoint bank */
+                Endpoint_ClearOUT();
+
+                /* Wait until the host has sent another packet */
+                if (Endpoint_WaitUntilReady())
+                    return;
+            }
+
+            for (i = 0; i < 64; ++i)
+                buf[i] = Endpoint_Read_8();
+
+            /* Check if the current command is being aborted by the host */
+            if (MSInterfaceInfo->State.IsMassStoreReset)
+                return;
+
+            if (bufno == 0) {
+                state = 1;
+                for (i = 0; i < 8; ++i) {
+                    if (buf[i] != uf2magic[i]) {
+                        state = 0;
+                        break;
+                    }
+                }
+                if (buf[8] & 1)
+                    state = 0; // UF2 do not flash flag
+
+                addr = *(uint16_t*)(buf + 12);
+                // STK500 address is in words, not bytes
+                addr >>= 1;
+            }
+
+            if (!state)
+                continue;
+
+            // 0 - 32-64
+            // 1 - 0-64
+            // 2 - 0-32 // 32-64
+            // 3 - 0-64
+            // 4 - 0-32
+
+            if (1 <= bufno && bufno <= 4) {
+                for (i = 0; i < 32; ++i)
+                    Serial_SendByte(buf[i]);
+            }
+
+            if (bufno == 0 || bufno == 2) {
+                if (bufno == 2) {
+                    Serial_SendByte(CRC_EOP); // end previous
+                    addr += SPM_PAGESIZE >> 1;
+                }
+
+                Serial_SendByte(STK_LOAD_ADDRESS);
+                Serial_SendByte(addr & 0xff); // little endian
+                Serial_SendByte(addr >> 8);
+                Serial_SendByte(CRC_EOP);
+
+                Serial_SendByte(STK_PROG_PAGE);
+                Serial_SendByte(SPM_PAGESIZE >> 8); // and big endian here, go figure
+                Serial_SendByte(SPM_PAGESIZE & 0xff);
+                Serial_SendByte('F');
+            }
+
+            if (bufno < 4) {
+                for (i = 32; i < 64; ++i)
+                    Serial_SendByte(buf[i]);
+            }
+			if (bufno == 4) {
+                Serial_SendByte(CRC_EOP);
 			}
+        }
 
-			/* Check if end of Dataflash page reached */
-			if (CurrDFPageByteDiv16 == (DATAFLASH_PAGE_SIZE >> 4))
-			{
-				/* Write the Dataflash buffer contents back to the Dataflash page */
-				Dataflash_WaitWhileBusy();
-				Dataflash_SendByte(UsingSecondBuffer ? DF_CMD_BUFF2TOMAINMEMWITHERASE : DF_CMD_BUFF1TOMAINMEMWITHERASE);
-				Dataflash_SendAddressBytes(CurrDFPage, 0);
+        /* Decrement the blocks remaining counter */
+        TotalBlocks--;
+    }
 
-				/* Reset the Dataflash buffer counter, increment the page counter */
-				CurrDFPageByteDiv16 = 0;
-				CurrDFPage++;
-
-				/* Once all the Dataflash ICs have had their first buffers filled, switch buffers to maintain throughput */
-				if (Dataflash_GetSelectedChip() == DATAFLASH_CHIP_MASK(DATAFLASH_TOTALCHIPS))
-				  UsingSecondBuffer = !(UsingSecondBuffer);
-
-				/* Select the next Dataflash chip based on the new Dataflash page index */
-				Dataflash_SelectChipFromPage(CurrDFPage);
-
-#if (DATAFLASH_PAGE_SIZE > VIRTUAL_MEMORY_BLOCK_SIZE)
-				/* If less than one Dataflash page remaining, copy over the existing page to preserve trailing data */
-				if ((TotalBlocks * (VIRTUAL_MEMORY_BLOCK_SIZE >> 4)) < (DATAFLASH_PAGE_SIZE >> 4))
-				{
-					/* Copy selected dataflash's current page contents to the Dataflash buffer */
-					Dataflash_WaitWhileBusy();
-					Dataflash_SendByte(UsingSecondBuffer ? DF_CMD_MAINMEMTOBUFF2 : DF_CMD_MAINMEMTOBUFF1);
-					Dataflash_SendAddressBytes(CurrDFPage, 0);
-					Dataflash_WaitWhileBusy();
-				}
-#endif
-
-				/* Send the Dataflash buffer write command */
-				Dataflash_SendByte(UsingSecondBuffer ? DF_CMD_BUFF2WRITE : DF_CMD_BUFF1WRITE);
-				Dataflash_SendAddressBytes(0, 0);
-			}
-
-			/* Write one 16-byte chunk of data to the Dataflash */
-			Dataflash_SendByte(Endpoint_Read_8());
-			Dataflash_SendByte(Endpoint_Read_8());
-			Dataflash_SendByte(Endpoint_Read_8());
-			Dataflash_SendByte(Endpoint_Read_8());
-			Dataflash_SendByte(Endpoint_Read_8());
-			Dataflash_SendByte(Endpoint_Read_8());
-			Dataflash_SendByte(Endpoint_Read_8());
-			Dataflash_SendByte(Endpoint_Read_8());
-			Dataflash_SendByte(Endpoint_Read_8());
-			Dataflash_SendByte(Endpoint_Read_8());
-			Dataflash_SendByte(Endpoint_Read_8());
-			Dataflash_SendByte(Endpoint_Read_8());
-			Dataflash_SendByte(Endpoint_Read_8());
-			Dataflash_SendByte(Endpoint_Read_8());
-			Dataflash_SendByte(Endpoint_Read_8());
-			Dataflash_SendByte(Endpoint_Read_8());
-
-			/* Increment the Dataflash page 16 byte block counter */
-			CurrDFPageByteDiv16++;
-
-			/* Increment the block 16 byte block counter */
-			BytesInBlockDiv16++;
-
-			/* Check if the current command is being aborted by the host */
-			if (MSInterfaceInfo->State.IsMassStoreReset)
-			  return;
-		}
-
-		/* Decrement the blocks remaining counter */
-		TotalBlocks--;
-	}
-
-	/* If the endpoint is empty, clear it ready for the next packet from the host */
-	if (!(Endpoint_IsReadWriteAllowed()))
-	  Endpoint_ClearOUT();
-
-	
-	#endif
+    /* If the endpoint is empty, clear it ready for the next packet from the host */
+    if (!(Endpoint_IsReadWriteAllowed()))
+        Endpoint_ClearOUT();
 }
 
-/** Reads blocks (OS blocks, not Dataflash pages) from the storage medium, the board Dataflash IC(s), into
- *  the pre-selected data IN endpoint. This routine reads in Dataflash page sized blocks from the Dataflash
+/** Reads blocks (OS blocks, not Dataflash pages) from the storage medium, the board Dataflash
+ * IC(s), into
+ *  the pre-selected data IN endpoint. This routine reads in Dataflash page sized blocks from the
+ * Dataflash
  *  and writes them in OS sized blocks to the endpoint.
  *
- *  \param[in] MSInterfaceInfo  Pointer to a structure containing a Mass Storage Class configuration and state
+ *  \param[in] MSInterfaceInfo  Pointer to a structure containing a Mass Storage Class configuration
+ * and state
  *  \param[in] BlockAddress  Data block starting address for the read sequence
  *  \param[in] TotalBlocks   Number of blocks of data to read
  */
-void DataflashManager_ReadBlocks(USB_ClassInfo_MS_Device_t* const MSInterfaceInfo,
-                                 const uint32_t BlockAddress,
-                                 uint16_t TotalBlocks)
-{
+void DataflashManager_ReadBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceInfo,
+                                 const uint32_t BlockAddress, uint16_t TotalBlocks) {
 #if 0
 
 	/* Wait until endpoint is ready before continuing */
@@ -242,20 +248,14 @@ void DataflashManager_ReadBlocks(USB_ClassInfo_MS_Device_t* const MSInterfaceInf
 	/* If the endpoint is full, send its contents to the host */
 	if (!(Endpoint_IsReadWriteAllowed()))
 	  Endpoint_ClearIN();
-#endif 
+#endif
 }
 
 /** Disables the Dataflash memory write protection bits on the board Dataflash ICs, if enabled. */
-void DataflashManager_ResetDataflashProtections(void)
-{
-}
+void DataflashManager_ResetDataflashProtections(void) {}
 
 /** Performs a simple test on the attached Dataflash IC(s) to ensure that they are working.
  *
  *  \return Boolean \c true if all media chips are working, \c false otherwise
  */
-bool DataflashManager_CheckDataflashOperation(void)
-{
-	return true;
-}
-
+bool DataflashManager_CheckDataflashOperation(void) { return true; }
