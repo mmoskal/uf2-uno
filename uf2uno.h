@@ -79,6 +79,7 @@
 		void EVENT_USB_Device_Disconnect(void);
 		void EVENT_USB_Device_ConfigurationChanged(void);
 		void EVENT_USB_Device_ControlRequest(void);
+		void HID_Task(void);
 
 
 #define UF2_VERSION "v0.0.0"

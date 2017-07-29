@@ -53,6 +53,10 @@
 		/** Size in bytes of the Mass Storage data endpoints. */
 		#define MASS_STORAGE_IO_EPSIZE         64
 
+		#define HID_OUT_EPADDR        (ENDPOINT_DIR_OUT | 3)
+		#define HID_IN_EPADDR        (ENDPOINT_DIR_IN | 4)
+		#define HID_IO_EPSIZE         64
+
 	/* Type Defines: */
 		/** Type define for the device configuration descriptor structure. This must be defined in the
 		 *  application code, as the configuration descriptor contains several sub-descriptors which
@@ -66,6 +70,10 @@
 			USB_Descriptor_Interface_t               MS_Interface;
 			USB_Descriptor_Endpoint_t                MS_DataInEndpoint;
 			USB_Descriptor_Endpoint_t                MS_DataOutEndpoint;
+			USB_Descriptor_Interface_t            HID_Interface;
+			USB_HID_Descriptor_HID_t              HID_GenericHID;
+			USB_Descriptor_Endpoint_t             HID_ReportINEndpoint;
+			USB_Descriptor_Endpoint_t             HID_ReportOUTEndpoint;
 		} USB_Descriptor_Configuration_t;
 
 		/** Enum for the device interface descriptor IDs within the device. Each interface descriptor
@@ -75,6 +83,7 @@
 		enum InterfaceDescriptors_t
 		{
 			INTERFACE_ID_MassStorage = 0, /**< Mass storage interface descriptor ID */
+			INTERFACE_ID_GenericHID = 1,
 		};
 
 		/** Enum for the device string descriptor IDs within the device. Each string descriptor should

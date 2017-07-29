@@ -67,6 +67,8 @@ RingBuff_t USBtoUSART_Buffer;
 /** Circular buffer to hold data from the serial port before it is sent to the host. */
 RingBuff_t USARTtoUSB_Buffer;
 
+uint8_t needsFlush;
+
 /** Pulse generation counters to keep track of the number of milliseconds remaining for each pulse type */
 volatile struct
 {
@@ -77,9 +79,6 @@ volatile struct
 
 static int readByteUSB(void) {
 	return -1;
-}
-
-static void sendByteUSB(int b) {
 }
 
 /** Main program entry point. This routine contains the overall program flow, including initial
@@ -118,10 +117,9 @@ int main(void)
 				PulseMSRemaining.TxLEDPulse = TX_RX_LED_PULSE_MS;
 			}
 
-			/* Read bytes from the USART receive buffer into the USB IN endpoint */
-			while (BufferCount--)
-			  sendByteUSB(RingBuffer_Remove(&USARTtoUSB_Buffer));
-			  
+			if (BufferCount > 0)
+				needsFlush = 1;
+
 			/* Turn off TX LED(s) once the TX pulse period has elapsed */
 			if (PulseMSRemaining.TxLEDPulse && !(--PulseMSRemaining.TxLEDPulse))
 			  LEDs_TurnOffLEDs(LEDMASK_TX);
@@ -140,6 +138,7 @@ int main(void)
 		}
 	
 		MS_Device_USBTask(&Disk_MS_Interface);
+		HID_Task();
 		USB_USBTask();
 	}
 }
@@ -198,6 +197,9 @@ void EVENT_USB_Device_ConfigurationChanged(void)
 	bool ConfigSuccess = true;
 
 	ConfigSuccess &= MS_Device_ConfigureEndpoints(&Disk_MS_Interface);
+
+	ConfigSuccess &= Endpoint_ConfigureEndpoint(HID_IN_EPADDR, EP_TYPE_INTERRUPT, HID_IO_EPSIZE, 1);
+	ConfigSuccess &= Endpoint_ConfigureEndpoint(HID_OUT_EPADDR, EP_TYPE_INTERRUPT, HID_IO_EPSIZE, 1);
 	LEDs_SetAllLEDs(ConfigSuccess ? LEDMASK_TX : LEDMASK_ERROR);
 }
 
@@ -205,6 +207,34 @@ void EVENT_USB_Device_ConfigurationChanged(void)
 void EVENT_USB_Device_ControlRequest(void)
 {
 	MS_Device_ProcessControlRequest(&Disk_MS_Interface);
+
+	/* Handle HID Class specific requests */
+	switch (USB_ControlRequest.bRequest)
+	{
+		case HID_REQ_GetReport:
+			if (USB_ControlRequest.bmRequestType == (REQDIR_DEVICETOHOST | REQTYPE_CLASS | REQREC_INTERFACE))
+			{
+				uint8_t GenericData[8];
+
+				Endpoint_ClearSETUP();
+				memset(GenericData, 0, sizeof(GenericData));
+
+				/* Write the report data to the control endpoint */
+				Endpoint_Write_Control_Stream_LE(&GenericData, sizeof(GenericData));
+				Endpoint_ClearOUT();
+			}
+
+			break;
+		case HID_REQ_SetReport:
+			if (USB_ControlRequest.bmRequestType == (REQDIR_HOSTTODEVICE | REQTYPE_CLASS | REQREC_INTERFACE))
+			{
+				Endpoint_ClearSETUP();
+				Endpoint_ClearIN();
+			}
+
+			break;
+	}
+
 }
 
 /** Mass Storage class driver callback function the reception of SCSI commands from the host, which must be processed.
@@ -233,6 +263,56 @@ ISR(USART1_RX_vect, ISR_BLOCK)
 	if (USB_DeviceState == DEVICE_STATE_Configured){
 	    LEDs_TurnOnLEDs(LEDMASK_RX);
  		RingBuffer_Insert(&USARTtoUSB_Buffer, ReceivedByte);
+	}
+}
+
+
+void HID_Task(void)
+{
+	/* Device must be connected and configured for the task to run */
+	if (USB_DeviceState != DEVICE_STATE_Configured)
+	  return;
+
+	Endpoint_SelectEndpoint(HID_OUT_EPADDR);
+
+	uint8_t data[64];
+
+	/* Check to see if a packet has been sent from the host */
+	if (Endpoint_IsOUTReceived())
+	{
+		/* Check to see if the packet contains data */
+		if (Endpoint_IsReadWriteAllowed())
+		{
+
+			for (uint8_t i = 0; i < sizeof(data); ++i)
+				data[i] = Endpoint_Read_8();
+
+			// ProcessGenericHIDReport(GenericData);
+		}
+
+		/* Finalize the stream transfer to send the last packet */
+		Endpoint_ClearOUT();
+	}
+
+	Endpoint_SelectEndpoint(HID_IN_EPADDR);
+
+	/* Check to see if the host is ready to accept another packet */
+	if (needsFlush && Endpoint_IsINReady())
+	{
+		uint8_t len = RingBuffer_GetCount(&USARTtoUSB_Buffer);
+		needsFlush = 0;
+
+		if (len > 0) {
+			if (len > 63) len = 63;
+			data[0] = 0x80 | len;
+			for (uint8_t i = 0; i < len; ++i)
+				data[i + 1] = RingBuffer_Remove(&USARTtoUSB_Buffer);
+
+			for (uint8_t i = 0; i < sizeof(data); ++i)
+				Endpoint_Write_8(data[i]);
+
+			Endpoint_ClearIN();
+		}
 	}
 }
 
