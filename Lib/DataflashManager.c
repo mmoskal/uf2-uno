@@ -49,6 +49,16 @@ const uint8_t uf2magic[] PROGMEM = "UF2\nWQ]\x9E";
 #define STK_PROG_PAGE 0x64    // 'd'
 #define STK_LOAD_ADDRESS 0x55 // 'U'
 
+static uint16_t numBlocksWritten;
+
+static void targetReset(void) {
+	  AVR_RESET_LINE_PORT &= ~AVR_RESET_LINE_MASK;
+	  _delay_ms(10);
+	  AVR_RESET_LINE_PORT |= AVR_RESET_LINE_MASK;
+	  _delay_ms(50);
+}
+
+
 /** Writes blocks (OS blocks, not Dataflash pages) to the storage medium, the board Dataflash IC(s),
  * from
  *  the pre-selected data OUT endpoint. This routine reads in OS sized blocks from the endpoint and
@@ -109,6 +119,11 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
 
             if (!state)
                 continue;
+            
+            if (numBlocksWritten == 0)
+                targetReset();
+            if (bufno == 0)
+                numBlocksWritten++;
 
             // 0 - 32-64
             // 1 - 0-64

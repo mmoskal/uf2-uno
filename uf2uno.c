@@ -234,9 +234,3 @@ ISR(USART1_RX_vect, ISR_BLOCK)
 	  RingBuffer_Insert(&USARTtoUSB_Buffer, ReceivedByte);
 }
 
-void deviceReset(void) {
-	  AVR_RESET_LINE_PORT &= ~AVR_RESET_LINE_MASK;
-	  // sleep
-	  AVR_RESET_LINE_PORT |= AVR_RESET_LINE_MASK;
-}
-
