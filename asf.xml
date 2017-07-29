@@ -42,14 +42,14 @@
 		<device-support-alias value="lufa_uc3"/>
 
 		<build type="distribute" subtype="user-file" value="doxyfile"/>
-		<build type="distribute" subtype="user-file" value="VirtualSerialMassStorage.txt"/>
-		<build type="distribute" subtype="user-file" value="LUFA VirtualSerialMassStorage.inf"/>
+		<build type="distribute" subtype="user-file" value="uf2uno.txt"/>
+		<build type="distribute" subtype="user-file" value="LUFA uf2uno.inf"/>
 
-		<build type="c-source" value="VirtualSerialMassStorage.c"/>
+		<build type="c-source" value="uf2uno.c"/>
 		<build type="c-source" value="Lib/DataflashManager.c"/>
 		<build type="c-source" value="Lib/SCSI.c"/>
 		<build type="c-source" value="Descriptors.c"/>
-		<build type="header-file" value="VirtualSerialMassStorage.h"/>
+		<build type="header-file" value="uf2uno.h"/>
 		<build type="header-file" value="Descriptors.h"/>
 		<build type="header-file" value="Lib/DataflashManager.h"/>
 		<build type="header-file" value="Lib/SCSI.h"/>

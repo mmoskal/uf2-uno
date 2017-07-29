@@ -39,7 +39,7 @@
 	/* Includes: */
 		#include <avr/io.h>
 
-		#include "../VirtualSerialMassStorage.h"
+		#include "../uf2uno.h"
 		#include "../Descriptors.h"
 		#include "Config/AppConfig.h"
 

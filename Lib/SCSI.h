@@ -42,7 +42,7 @@
 
 		#include <LUFA/Drivers/USB/USB.h>
 
-		#include "../VirtualSerialMassStorage.h"
+		#include "../uf2uno.h"
 		#include "../Descriptors.h"
 		#include "DataflashManager.h"
 		#include "Config/AppConfig.h"

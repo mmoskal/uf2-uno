@@ -11,13 +11,13 @@
 
 # Run "make help" for target help.
 
-MCU          = at90usb1287
+MCU          = atmega16u2
 ARCH         = AVR8
 BOARD        = USBKEY
-F_CPU        = 8000000
+F_CPU        = 16000000
 F_USB        = $(F_CPU)
 OPTIMIZATION = s
-TARGET       = VirtualSerialMassStorage
+TARGET       = uf2uno
 SRC          = $(TARGET).c Descriptors.c Lib/DataflashManager.c Lib/SCSI.c $(LUFA_SRC_USB) $(LUFA_SRC_USBCLASS)
 LUFA_PATH    = ../../../../LUFA
 CC_FLAGS     = -DUSE_LUFA_CONFIG_HEADER -IConfig/
