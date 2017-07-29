@@ -52,12 +52,11 @@ const uint8_t uf2magic[] PROGMEM = "UF2\nWQ]\x9E";
 static uint16_t numBlocksWritten;
 
 static void targetReset(void) {
-	  AVR_RESET_LINE_PORT &= ~AVR_RESET_LINE_MASK;
-	  _delay_ms(10);
-	  AVR_RESET_LINE_PORT |= AVR_RESET_LINE_MASK;
-	  _delay_ms(50);
+    AVR_RESET_LINE_PORT &= ~AVR_RESET_LINE_MASK;
+    _delay_ms(10);
+    AVR_RESET_LINE_PORT |= AVR_RESET_LINE_MASK;
+    _delay_ms(50);
 }
-
 
 /** Writes blocks (OS blocks, not Dataflash pages) to the storage medium, the board Dataflash IC(s),
  * from
@@ -104,7 +103,7 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
             if (bufno == 0) {
                 state = 1;
                 for (i = 0; i < 8; ++i) {
-                    if (buf[i] != uf2magic[i]) {
+                    if (buf[i] != pgm_read_byte(uf2magic + i)) {
                         state = 0;
                         break;
                     }
@@ -119,9 +118,11 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
 
             if (!state)
                 continue;
-            
-            if (numBlocksWritten == 0)
+
+            if (numBlocksWritten == 0) {
+                LEDs_TurnOnLEDs(LEDMASK_RX);
                 targetReset();
+            }
             if (bufno == 0)
                 numBlocksWritten++;
 
@@ -235,12 +236,15 @@ const char indexFile[] PROGMEM = //
     "</html>\n";
 
 // yeah... seriously - avr-gcc has trouble with arrays
-static const char* getFileData(uint8_t idx, uint8_t tp) {
-	switch (idx){
-		case 0: return tp ? infoUf2File : infoUf2Name;
-		case 1: return tp ? indexFile : indexName;
-		default: return 0;
-	}
+static const char *getFileData(uint8_t idx, uint8_t tp) {
+    switch (idx) {
+    case 0:
+        return tp ? infoUf2File : infoUf2Name;
+    case 1:
+        return tp ? indexFile : indexName;
+    default:
+        return 0;
+    }
 }
 
 #define NUM_INFO 2

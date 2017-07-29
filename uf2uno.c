@@ -215,9 +215,9 @@ bool CALLBACK_MS_Device_SCSICommandReceived(USB_ClassInfo_MS_Device_t* const MSI
 {
 	bool CommandSuccess;
 
-	LEDs_SetAllLEDs(LEDMASK_TX);
+	LEDs_TurnOnLEDs(LEDMASK_TX);
 	CommandSuccess = SCSI_DecodeSCSICommand(MSInterfaceInfo);
-	// LEDs_SetAllLEDs(LEDMASK_READY);
+	LEDs_TurnOffLEDs(LEDMASK_TX);
 
 	return CommandSuccess;
 }
