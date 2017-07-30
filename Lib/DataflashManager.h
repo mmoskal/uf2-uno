@@ -68,8 +68,6 @@
 		void DataflashManager_ReadBlocks(USB_ClassInfo_MS_Device_t* const MSInterfaceInfo,
 		                                 const uint32_t BlockAddress,
 		                                 uint16_t TotalBlocks);
-		void DataflashManager_ResetDataflashProtections(void);
-		bool DataflashManager_CheckDataflashOperation(void);
 
 #endif
 

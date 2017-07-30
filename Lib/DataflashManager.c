@@ -422,12 +422,3 @@ void DataflashManager_ReadBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceInf
     if (!(Endpoint_IsReadWriteAllowed()))
         Endpoint_ClearIN();
 }
-
-/** Disables the Dataflash memory write protection bits on the board Dataflash ICs, if enabled. */
-void DataflashManager_ResetDataflashProtections(void) {}
-
-/** Performs a simple test on the attached Dataflash IC(s) to ensure that they are working.
- *
- *  \return Boolean \c true if all media chips are working, \c false otherwise
- */
-bool DataflashManager_CheckDataflashOperation(void) { return true; }

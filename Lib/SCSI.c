@@ -248,17 +248,6 @@ static bool SCSI_Command_Send_Diagnostic(USB_ClassInfo_MS_Device_t* const MSInte
 		return false;
 	}
 
-	/* Check to see if all attached Dataflash ICs are functional */
-	if (!(DataflashManager_CheckDataflashOperation()))
-	{
-		/* Update SENSE key with a hardware error condition and return command fail */
-		SCSI_SET_SENSE(SCSI_SENSE_KEY_HARDWARE_ERROR,
-		               SCSI_ASENSE_NO_ADDITIONAL_INFORMATION,
-		               SCSI_ASENSEQ_NO_QUALIFIER);
-
-		return false;
-	}
-
 	/* Succeed the command and update the bytes transferred counter */
 	MSInterfaceInfo->State.CommandBlock.DataTransferLength = 0;
 
