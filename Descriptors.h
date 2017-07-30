@@ -51,11 +51,11 @@
 		#define MASS_STORAGE_OUT_EPADDR        (ENDPOINT_DIR_OUT | 2)
 
 		/** Size in bytes of the Mass Storage data endpoints. */
-		#define MASS_STORAGE_IO_EPSIZE         64
+		#define MASS_STORAGE_IO_EPSIZE         16
 
 		#define HID_IN_EPADDR        (ENDPOINT_DIR_IN | 3)
 		#define HID_OUT_EPADDR        (ENDPOINT_DIR_OUT | 4)
-		#define HID_IO_EPSIZE         16
+		#define HID_IO_EPSIZE         64
 
 	/* Type Defines: */
 		/** Type define for the device configuration descriptor structure. This must be defined in the

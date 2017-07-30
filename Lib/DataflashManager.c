@@ -43,7 +43,7 @@ static void finishPacket(void) {
  */
 void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceInfo,
                                   const uint32_t BlockAddress, uint16_t TotalBlocks) {
-    uint8_t buf[64];
+    uint8_t buf[MASS_STORAGE_IO_EPSIZE];
     uint8_t state = 0;
     uint16_t addr = 0;
     uint8_t i;
@@ -55,7 +55,7 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
     while (TotalBlocks) {
         logChar('w');
 
-        for (uint8_t bufno = 0; bufno < 512 / 64; ++bufno) {
+        for (uint8_t bufno = 0; bufno < 512 / MASS_STORAGE_IO_EPSIZE; ++bufno) {
             /* Check if the endpoint is currently empty */
             if (!(Endpoint_IsReadWriteAllowed())) {
                 /* Clear the current endpoint bank */
@@ -66,7 +66,7 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
                     return;
             }
 
-            for (i = 0; i < 64; ++i)
+            for (i = 0; i < MASS_STORAGE_IO_EPSIZE; ++i)
                 buf[i] = Endpoint_Read_8();
 
             /* Check if the current command is being aborted by the host */
@@ -101,26 +101,11 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
                 numBlocksWritten++;
             }
 
-            // 0 - 32-64
-            // 1 - 0-64
-            // 2 - 0-32 // 32-64
-            // 3 - 0-64
-            // 4 - 0-32
-
-            if (1 <= bufno && bufno <= 4) {
-                for (i = 0; i < 32; ++i)
-                    Serial_SendByte(buf[i]);
-            }
-
-            if (bufno == 0 || bufno == 2) {
-                if (bufno == 2) {
-                    finishPacket(); // previous page
-                    addr += SPM_PAGESIZE >> 1;
-                }
-
+            if (bufno == 2 || bufno == 10) {
                 Serial_SendByte(STK_LOAD_ADDRESS);
                 Serial_SendByte(addr & 0xff); // little endian
                 Serial_SendByte(addr >> 8);
+                addr += SPM_PAGESIZE >> 1;
                 finishPacket();
 
                 Serial_SendByte(STK_PROG_PAGE);
@@ -129,11 +114,11 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
                 Serial_SendByte('F');
             }
 
-            if (bufno < 4) {
-                for (i = 32; i < 64; ++i)
+            if (2 <= bufno && bufno <= 17)
+                for (i = 0; i < MASS_STORAGE_IO_EPSIZE; ++i)
                     Serial_SendByte(buf[i]);
-            }
-            if (bufno == 4) {
+
+            if (bufno == 9 || bufno == 17) {
                 finishPacket();
             }
         }
