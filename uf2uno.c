@@ -133,6 +133,19 @@ int main(void)
 	}
 }
 
+void configSerial(void) {
+	/* Must turn off USART before reconfiguring it, otherwise incorrect operation may occur */
+	UCSR1B = 0;
+	UCSR1A = 0;
+	UCSR1C = 0;
+
+	UBRR1  = SERIAL_2X_UBBRVAL(115200);	
+
+	UCSR1C = (1 << UCSZ11) | (1 << UCSZ10);
+	UCSR1A = (1 << U2X1);
+	UCSR1B = ((1 << RXCIE1) | (1 << TXEN1) | (1 << RXEN1));
+}
+
 /** Configures the board hardware and chip peripherals for the demo's functionality. */
 void SetupHardware(void)
 {
@@ -155,7 +168,8 @@ void SetupHardware(void)
 	PMIC.CTRL = PMIC_LOLVLEN_bm | PMIC_MEDLVLEN_bm | PMIC_HILVLEN_bm;
 #endif
 
-	Serial_Init(115200, false);
+	Serial_Init(115200, true);
+	configSerial(); // includes RXCIE1 bit
 
 	/* Hardware Initialization */
 	LEDs_Init();
@@ -250,7 +264,7 @@ ISR(USART1_RX_vect, ISR_BLOCK)
 {
 	uint8_t ReceivedByte = UDR1;
 
-	if (USB_DeviceState == DEVICE_STATE_Configured){
+	if (USB_DeviceState == DEVICE_STATE_Configured) {
  		RingBuffer_Insert(&USARTtoUSB_Buffer, ReceivedByte);
 	}
 }

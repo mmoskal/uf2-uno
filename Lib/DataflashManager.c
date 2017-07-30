@@ -55,7 +55,12 @@ static void targetReset(void) {
     AVR_RESET_LINE_PORT &= ~AVR_RESET_LINE_MASK;
     _delay_ms(10);
     AVR_RESET_LINE_PORT |= AVR_RESET_LINE_MASK;
-    _delay_ms(800);
+    _delay_ms(600); // so it stops blinking
+}
+
+static void endFlashPage(void) {
+    Serial_SendByte(CRC_EOP);
+    _delay_ms(5);
 }
 
 /** Writes blocks (OS blocks, not Dataflash pages) to the storage medium, the board Dataflash IC(s),
@@ -122,7 +127,6 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
 
             if (numBlocksWritten == 0) {
                 logChar('R');
-                LEDs_TurnOnLEDs(LEDMASK_RX);
                 targetReset();
             }
             if (bufno == 0) {
@@ -143,7 +147,7 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
 
             if (bufno == 0 || bufno == 2) {
                 if (bufno == 2) {
-                    Serial_SendByte(CRC_EOP); // end previous
+                    endFlashPage(); // previous
                     addr += SPM_PAGESIZE >> 1;
                 }
 
@@ -163,7 +167,7 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
                     Serial_SendByte(buf[i]);
             }
             if (bufno == 4) {
-                Serial_SendByte(CRC_EOP);
+                endFlashPage();
             }
         }
 
