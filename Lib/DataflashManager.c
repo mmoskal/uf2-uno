@@ -58,9 +58,14 @@ static void targetReset(void) {
     _delay_ms(600); // so it stops blinking
 }
 
-static void endFlashPage(void) {
+extern volatile uint8_t recv_STK_OK;
+
+static void finishPacket(void) {
+    recv_STK_OK = 0;
     Serial_SendByte(CRC_EOP);
-    _delay_ms(5);
+    // TODO some timeout
+    while (!recv_STK_OK)
+        ;
 }
 
 /** Writes blocks (OS blocks, not Dataflash pages) to the storage medium, the board Dataflash IC(s),
@@ -147,14 +152,14 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
 
             if (bufno == 0 || bufno == 2) {
                 if (bufno == 2) {
-                    endFlashPage(); // previous
+                    finishPacket(); // previous page
                     addr += SPM_PAGESIZE >> 1;
                 }
 
                 Serial_SendByte(STK_LOAD_ADDRESS);
                 Serial_SendByte(addr & 0xff); // little endian
                 Serial_SendByte(addr >> 8);
-                Serial_SendByte(CRC_EOP);
+                finishPacket();
 
                 Serial_SendByte(STK_PROG_PAGE);
                 Serial_SendByte(SPM_PAGESIZE >> 8); // and big endian here, go figure
@@ -167,7 +172,7 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
                     Serial_SendByte(buf[i]);
             }
             if (bufno == 4) {
-                endFlashPage();
+                finishPacket();
             }
         }
 

@@ -257,12 +257,17 @@ bool CALLBACK_MS_Device_SCSICommandReceived(USB_ClassInfo_MS_Device_t* const MSI
 }
 
 
+volatile uint8_t recv_STK_OK = 0;
+
 /** ISR to manage the reception of data from the serial port, placing received bytes into a circular buffer
  *  for later transmission to the host.
  */
 ISR(USART1_RX_vect, ISR_BLOCK)
 {
 	uint8_t ReceivedByte = UDR1;
+
+	if (ReceivedByte == 0x10)
+		recv_STK_OK++;
 
 	if (USB_DeviceState == DEVICE_STATE_Configured) {
  		RingBuffer_Insert(&USARTtoUSB_Buffer, ReceivedByte);
