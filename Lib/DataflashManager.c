@@ -55,7 +55,7 @@ static void targetReset(void) {
     AVR_RESET_LINE_PORT &= ~AVR_RESET_LINE_MASK;
     _delay_ms(10);
     AVR_RESET_LINE_PORT |= AVR_RESET_LINE_MASK;
-    _delay_ms(1500);
+    _delay_ms(800);
 }
 
 /** Writes blocks (OS blocks, not Dataflash pages) to the storage medium, the board Dataflash IC(s),
@@ -81,6 +81,7 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
         return;
 
     while (TotalBlocks) {
+        logChar('w');
 
         for (uint8_t bufno = 0; bufno < 512 / 64; ++bufno) {
             /* Check if the endpoint is currently empty */
@@ -120,10 +121,14 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
                 continue;
 
             if (numBlocksWritten == 0) {
+                logChar('R');
+                LEDs_TurnOnLEDs(LEDMASK_RX);
                 targetReset();
             }
-            if (bufno == 0)
+            if (bufno == 0) {
+                logChar('W');
                 numBlocksWritten++;
+            }
 
             // 0 - 32-64
             // 1 - 0-64
@@ -332,7 +337,7 @@ void DataflashManager_ReadBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceInf
     /* Wait until endpoint is ready before continuing */
     if (Endpoint_WaitUntilReady())
         return;
-    
+
     logChar('B');
 
     while (TotalBlocks) {

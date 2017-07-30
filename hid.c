@@ -4,9 +4,9 @@
 uint8_t hidBuffer[HID_IO_EPSIZE];
 
 static void hidSendCore(void) {
-    while (!Endpoint_IsINReady()) {
-        // wait
-    }
+    Endpoint_WaitUntilReady();
+    while (!Endpoint_IsINReady())
+        ;
     for (uint8_t i = 0; i < sizeof(hidBuffer); ++i)
         Endpoint_Write_8(hidBuffer[i]);
     Endpoint_ClearIN();
@@ -72,10 +72,10 @@ void HID_Task(void) {
                     RingBuffer_Insert(&USBtoUSART_Buffer, data[i + 1]);
                 }
             } else {
-                struct HF2_Command *cmd = (void*)(data + 1);
+                struct HF2_Command *cmd = (void *)(data + 1);
                 uint32_t tmp = cmd->tag; // implicit zero status
                 if (cmd->command_id == HF2_CMD_BININFO) {
-			        hidWrite(&tmp, 4);
+                    hidWrite(&tmp, 4);
                     tmp = HF2_MODE_BOOTLOADER;
                     hidWrite(&tmp, 4);
                     tmp = SPM_PAGESIZE;
@@ -102,7 +102,6 @@ void HID_Task(void) {
 
     Endpoint_SelectEndpoint(HID_IN_EPADDR);
 
-    /* Check to see if the host is ready to accept another packet */
     if (needsFlush && Endpoint_IsINReady()) {
         uint8_t len = RingBuffer_GetCount(&USARTtoUSB_Buffer);
         needsFlush = 0;
@@ -110,11 +109,13 @@ void HID_Task(void) {
         if (len > 0) {
             if (len > HID_IO_EPSIZE - 1) {
                 len = HID_IO_EPSIZE - 1;
-				needsFlush = 1;
-			}
-            hidBuffer[0] = 0x80 | len;
+                needsFlush = 1;
+            }
+
             for (uint8_t i = 0; i < len; ++i)
                 hidBuffer[i + 1] = RingBuffer_Remove(&USARTtoUSB_Buffer);
+
+            hidBuffer[0] = 0x80 | len;
             hidSendCore();
         }
     }

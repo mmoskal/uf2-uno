@@ -52,10 +52,10 @@ const USB_Descriptor_HIDReport_Datatype_t PROGMEM GenericReport[] =
     0x15, 0x00,       // logical min 0
     0x26, 0xFF, 0x00, // logical max 255
     0x75, 8,          // report size 8
-    0x95, 64,         // report count 64
+    0x95, HID_IO_EPSIZE,         // report count 16
     0x09, 0x01,       // usage 1
     0x81, 0x02,       // input: data, variable, absolute
-    0x95, 64,         // report count 64
+    0x95, HID_IO_EPSIZE,         // report count 16
     0x09, 0x01,       // usage 1
     0x91, 0x02,       // output: data, variable, absolute
     0x95, 1,          // report count 1
