@@ -77,8 +77,8 @@ volatile struct
 	uint8_t PingPongLEDPulse; /**< Milliseconds remaining for enumeration Tx/Rx ping-pong LED pulse */
 } PulseMSRemaining;
 
-static int readByteUSB(void) {
-	return -1;
+void logChar(char c) {
+ 	RingBuffer_Insert(&USARTtoUSB_Buffer, c);
 }
 
 /** Main program entry point. This routine contains the overall program flow, including initial
@@ -96,16 +96,6 @@ int main(void)
 
 	for (;;)
 	{
-		/* Only try to read in bytes from the CDC interface if the transmit buffer is not full */
-		if (!(RingBuffer_IsFull(&USBtoUSART_Buffer)))
-		{
-			int16_t ReceivedByte = readByteUSB();
-
-			/* Read bytes from the USB OUT endpoint into the USART transmit buffer */
-			if (!(ReceivedByte < 0))
-			  RingBuffer_Insert(&USBtoUSART_Buffer, ReceivedByte);
-		}
-		
 		/* Check if the UART receive buffer flush timer has expired or the buffer is nearly full */
 		RingBuff_Count_t BufferCount = RingBuffer_GetCount(&USARTtoUSB_Buffer);
 		if ((TIFR0 & (1 << TOV0)) || (BufferCount > BUFFER_NEARLY_FULL))
@@ -261,58 +251,6 @@ ISR(USART1_RX_vect, ISR_BLOCK)
 	uint8_t ReceivedByte = UDR1;
 
 	if (USB_DeviceState == DEVICE_STATE_Configured){
-	    LEDs_TurnOnLEDs(LEDMASK_RX);
  		RingBuffer_Insert(&USARTtoUSB_Buffer, ReceivedByte);
 	}
 }
-
-
-void HID_Task(void)
-{
-	/* Device must be connected and configured for the task to run */
-	if (USB_DeviceState != DEVICE_STATE_Configured)
-	  return;
-
-	Endpoint_SelectEndpoint(HID_OUT_EPADDR);
-
-	uint8_t data[64];
-
-	/* Check to see if a packet has been sent from the host */
-	if (Endpoint_IsOUTReceived())
-	{
-		/* Check to see if the packet contains data */
-		if (Endpoint_IsReadWriteAllowed())
-		{
-
-			for (uint8_t i = 0; i < sizeof(data); ++i)
-				data[i] = Endpoint_Read_8();
-
-			// ProcessGenericHIDReport(GenericData);
-		}
-
-		/* Finalize the stream transfer to send the last packet */
-		Endpoint_ClearOUT();
-	}
-
-	Endpoint_SelectEndpoint(HID_IN_EPADDR);
-
-	/* Check to see if the host is ready to accept another packet */
-	if (needsFlush && Endpoint_IsINReady())
-	{
-		uint8_t len = RingBuffer_GetCount(&USARTtoUSB_Buffer);
-		needsFlush = 0;
-
-		if (len > 0) {
-			if (len > 63) len = 63;
-			data[0] = 0x80 | len;
-			for (uint8_t i = 0; i < len; ++i)
-				data[i + 1] = RingBuffer_Remove(&USARTtoUSB_Buffer);
-
-			for (uint8_t i = 0; i < sizeof(data); ++i)
-				Endpoint_Write_8(data[i]);
-
-			Endpoint_ClearIN();
-		}
-	}
-}
-

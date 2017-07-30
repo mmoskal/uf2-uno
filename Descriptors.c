@@ -75,7 +75,7 @@ const USB_Descriptor_Device_t PROGMEM DeviceDescriptor =
 {
 	.Header                 = {.Size = sizeof(USB_Descriptor_Device_t), .Type = DTYPE_Device},
 
-	.USBSpecification       = VERSION_BCD(1,1,0),
+	.USBSpecification       = VERSION_BCD(2,0,0),
 	.Class                  = USB_CSCP_IADDeviceClass,
 	.SubClass               = USB_CSCP_IADDeviceSubclass,
 	.Protocol               = USB_CSCP_IADDeviceProtocol,
@@ -172,7 +172,7 @@ const USB_Descriptor_Configuration_t PROGMEM ConfigurationDescriptor =
 		{
 			.Header                 = {.Size = sizeof(USB_HID_Descriptor_HID_t), .Type = HID_DTYPE_HID},
 
-			.HIDSpec                = VERSION_BCD(1,1,1),
+			.HIDSpec                = VERSION_BCD(1,0,0),
 			.CountryCode            = 0x00,
 			.TotalReportDescriptors = 1,
 			.HIDReportType          = HID_DTYPE_Report,
@@ -186,7 +186,7 @@ const USB_Descriptor_Configuration_t PROGMEM ConfigurationDescriptor =
 			.EndpointAddress        = HID_IN_EPADDR,
 			.Attributes             = (EP_TYPE_INTERRUPT | ENDPOINT_ATTR_NO_SYNC | ENDPOINT_USAGE_DATA),
 			.EndpointSize           = HID_IO_EPSIZE,
-			.PollingIntervalMS      = 0x05
+			.PollingIntervalMS      = 0x01
 		},
 
 	.HID_ReportOUTEndpoint =
@@ -196,7 +196,7 @@ const USB_Descriptor_Configuration_t PROGMEM ConfigurationDescriptor =
 			.EndpointAddress        = HID_OUT_EPADDR,
 			.Attributes             = (EP_TYPE_INTERRUPT | ENDPOINT_ATTR_NO_SYNC | ENDPOINT_USAGE_DATA),
 			.EndpointSize           = HID_IO_EPSIZE,
-			.PollingIntervalMS      = 0x05
+			.PollingIntervalMS      = 0x01
 		}
 };
 

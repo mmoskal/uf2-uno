@@ -332,6 +332,8 @@ void DataflashManager_ReadBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceInf
     /* Wait until endpoint is ready before continuing */
     if (Endpoint_WaitUntilReady())
         return;
+    
+    logChar('B');
 
     while (TotalBlocks) {
         /* Check if the endpoint is currently full */

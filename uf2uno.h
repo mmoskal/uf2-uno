@@ -80,6 +80,15 @@
 		void EVENT_USB_Device_ConfigurationChanged(void);
 		void EVENT_USB_Device_ControlRequest(void);
 		void HID_Task(void);
+		void logChar(char c);
+
+/** Circular buffer to hold data from the host before it is sent to the device via the serial port. */
+extern RingBuff_t USBtoUSART_Buffer;
+
+/** Circular buffer to hold data from the serial port before it is sent to the host. */
+extern RingBuff_t USARTtoUSB_Buffer;
+
+extern uint8_t needsFlush;
 
 
 #define UF2_VERSION "v0.0.0"
