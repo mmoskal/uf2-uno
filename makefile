@@ -35,7 +35,7 @@ all:
 DPROG = dfu-programmer $(MCU)
 
 recover:
-	$(DPROG) erase
+	$(DPROG) erase || :
 	$(DPROG) flash tmp/Genuino-usbserial-atmega16u2-Uno-R3.hex
 
 burn: all

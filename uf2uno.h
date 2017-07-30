@@ -62,14 +62,13 @@
 		/** LED mask for the library LED driver, to indicate RX activity. */
 		#define LEDMASK_RX               LEDS_LED2
 		
-		/** LED mask for the library LED driver, to indicate that an error has occurred in the USB interface. */
-		#define LEDMASK_ERROR            (LEDS_LED1 | LEDS_LED2)
+		#define LEDMASK_MSD               LEDMASK_TX
 		
-		/** LED mask for the library LED driver, to indicate that the USB interface is busy. */
-		#define LEDMASK_BUSY             (LEDS_LED1 | LEDS_LED2)
-
-		#define LEDMASK_ENUMERATING LEDMASK_RX
-		#define LEDMASK_NOTREADY (LEDS_LED1 | LEDS_LED2)
+		/** LED mask for the library LED driver, to indicate that an error has occurred in the USB interface. */
+		#define LEDMASK_ERROR            (LEDS_LED1|LEDS_LED2)
+		
+		#define LEDMASK_ENUMERATING LEDMASK_ERROR
+		#define LEDMASK_NOTREADY LEDMASK_ERROR
 		#define LEDMASK_READY 0
 
 	/* Function Prototypes: */

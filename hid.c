@@ -1,7 +1,7 @@
 #include "uf2uno.h"
 #include "uf2hid.h"
 
-uint8_t hidBuffer[64];
+uint8_t hidBuffer[HID_IO_EPSIZE];
 
 static void hidSendCore(void) {
     while (!Endpoint_IsINReady()) {
@@ -19,7 +19,7 @@ void hidSendReply(void) {
 }
 
 static void checkFlush(void) {
-    if (hidBuffer[0] == 63)
+    if (hidBuffer[0] == HID_IO_EPSIZE - 1)
         hidSendCore();
 }
 
@@ -63,7 +63,7 @@ void HID_Task(void) {
         /* Check to see if the packet contains data */
         if (Endpoint_IsReadWriteAllowed()) {
 
-            for (uint8_t i = 0; i < sizeof(data); ++i)
+            for (uint8_t i = 0; i < HID_IO_EPSIZE; ++i)
                 data[i] = Endpoint_Read_8();
 
             if (data[0] & 0x80) {
@@ -75,14 +75,14 @@ void HID_Task(void) {
                 struct HF2_Command *cmd = (void*)(data + 1);
                 uint32_t tmp = cmd->tag; // implicit zero status
                 if (cmd->command_id == HF2_CMD_BININFO) {
-                    hidWrite(&tmp, 4);
+			        hidWrite(&tmp, 4);
                     tmp = HF2_MODE_BOOTLOADER;
                     hidWrite(&tmp, 4);
                     tmp = SPM_PAGESIZE;
                     hidWrite(&tmp, 4);
                     tmp = 32 * (1024 / SPM_PAGESIZE);
                     hidWrite(&tmp, 4);
-                    tmp = 63;
+                    tmp = HID_IO_EPSIZE - 1;
                     hidWrite(&tmp, 4);
                 } else if (cmd->command_id == HF2_CMD_INFO) {
                     hidWrite(&tmp, 4);
@@ -108,8 +108,10 @@ void HID_Task(void) {
         needsFlush = 0;
 
         if (len > 0) {
-            if (len > 63)
-                len = 63;
+            if (len > HID_IO_EPSIZE - 1) {
+                len = HID_IO_EPSIZE - 1;
+				needsFlush = 1;
+			}
             hidBuffer[0] = 0x80 | len;
             for (uint8_t i = 0; i < len; ++i)
                 hidBuffer[i + 1] = RingBuffer_Remove(&USARTtoUSB_Buffer);

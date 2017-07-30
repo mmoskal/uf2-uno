@@ -103,8 +103,8 @@ int main(void)
 			TIFR0 |= (1 << TOV0);
 
 			if (USARTtoUSB_Buffer.Count) {
-				LEDs_TurnOnLEDs(LEDMASK_TX);
-				PulseMSRemaining.TxLEDPulse = TX_RX_LED_PULSE_MS;
+				//LEDs_TurnOnLEDs(LEDMASK_TX);
+				//PulseMSRemaining.TxLEDPulse = TX_RX_LED_PULSE_MS;
 			}
 
 			if (BufferCount > 0)
@@ -123,8 +123,8 @@ int main(void)
 		if (!(RingBuffer_IsEmpty(&USBtoUSART_Buffer))) {
 		    Serial_SendByte(RingBuffer_Remove(&USBtoUSART_Buffer));
 		  	
-		  	LEDs_TurnOnLEDs(LEDMASK_RX);
-			PulseMSRemaining.RxLEDPulse = TX_RX_LED_PULSE_MS;
+		  	//LEDs_TurnOnLEDs(LEDMASK_RX);
+			//PulseMSRemaining.RxLEDPulse = TX_RX_LED_PULSE_MS;
 		}
 	
 		MS_Device_USBTask(&Disk_MS_Interface);
@@ -190,7 +190,7 @@ void EVENT_USB_Device_ConfigurationChanged(void)
 
 	ConfigSuccess &= Endpoint_ConfigureEndpoint(HID_IN_EPADDR, EP_TYPE_INTERRUPT, HID_IO_EPSIZE, 1);
 	ConfigSuccess &= Endpoint_ConfigureEndpoint(HID_OUT_EPADDR, EP_TYPE_INTERRUPT, HID_IO_EPSIZE, 1);
-	LEDs_SetAllLEDs(ConfigSuccess ? LEDMASK_TX : LEDMASK_ERROR);
+	LEDs_SetAllLEDs(ConfigSuccess ? LEDMASK_READY : LEDMASK_ERROR);
 }
 
 /** Event handler for the library USB Control Request reception event. */
@@ -235,9 +235,9 @@ bool CALLBACK_MS_Device_SCSICommandReceived(USB_ClassInfo_MS_Device_t* const MSI
 {
 	bool CommandSuccess;
 
-	LEDs_TurnOnLEDs(LEDMASK_TX);
+	LEDs_TurnOnLEDs(LEDMASK_MSD);
 	CommandSuccess = SCSI_DecodeSCSICommand(MSInterfaceInfo);
-	LEDs_TurnOffLEDs(LEDMASK_TX);
+	LEDs_TurnOffLEDs(LEDMASK_MSD);
 
 	return CommandSuccess;
 }
