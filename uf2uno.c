@@ -78,7 +78,7 @@ volatile struct
 } PulseMSRemaining;
 
 void logChar(char c) {
- 	RingBuffer_Insert(&USARTtoUSB_Buffer, c);
+ 	// RingBuffer_Insert(&USARTtoUSB_Buffer, c);
 }
 
 /** Main program entry point. This routine contains the overall program flow, including initial
