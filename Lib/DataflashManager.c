@@ -260,18 +260,9 @@ static void write_from_data(const void *src, uint16_t count) {
     Endpoint_Write_Stream_LE(src, count, NULL);
 }
 
-static void write_from_pgm(const void *src0, uint16_t count) {
-    uint8_t buf[16];
-    const uint8_t *src = src0;
-    while (count > 0) {
-        uint8_t len = count > sizeof(buf) ? sizeof(buf) : count;
-        for (uint8_t i = 0; i < len; ++i) {
-            buf[i] = pgm_read_byte(src);
-            src++;
-        }
-        count -= len;
-        write_from_data(buf, len);
-    }
+static void write_from_pgm(const void *src, uint16_t count) {
+    while (count-- > 0)
+        write_byte(pgm_read_byte(src++));
 }
 
 static void write_zeros(uint16_t count) { Endpoint_Null_Stream(count, NULL); }
