@@ -3,6 +3,13 @@
 
 const uint8_t uf2magic[] PROGMEM = "UF2\nWQ]\x9E";
 
+// 32k flash, 256b payload, +20% overhead
+#define MAX_BLOCKS ((32 * (1024 / 256)) * 5 / 4)
+
+#if MAX_BLOCKS >= 255
+#error too high max blocks?
+#endif
+
 #define PAGE_SHIFT 7
 
 #if SPM_PAGESIZE != 128
@@ -20,6 +27,8 @@ const uint8_t uf2magic[] PROGMEM = "UF2\nWQ]\x9E";
 #define STK_LOAD_ADDRESS 0x55 // 'U'
 
 static uint16_t numBlocksWritten;
+static uint8_t numBlocks;
+static uint8_t writtenMask[MAX_BLOCKS / 8];
 
 static void targetReset(void) {
     AVR_RESET_LINE_PORT &= ~AVR_RESET_LINE_MASK;
@@ -33,9 +42,16 @@ extern volatile uint8_t recv_STK_OK;
 static void finishPacket(void) {
     recv_STK_OK = 0;
     Serial_SendByte(CRC_EOP);
-    // TODO some timeout
+
+    wdt_enable(WDTO_250MS);
+
     while (!recv_STK_OK)
         ;
+
+    // we've sent some packets
+    // if we see no action in next 1S, the optiboot is going to stop anyway, so we may as well reset
+    // ourselves
+    wdt_enable(WDTO_1S);
 }
 
 /** Writes blocks (OS blocks, not Dataflash pages) to the storage medium, the board Dataflash IC(s),
@@ -103,18 +119,34 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
 
             if (bufno == 1) {
                 numPages = *(uint16_t *)(buf + 0) >> PAGE_SHIFT;
-                logChar('W');
-                numBlocksWritten++;
+
+                uint32_t tmp = *(uint32_t *)(buf + 24 - 16);
+                if (tmp != numBlocks) {
+                    if (tmp > MAX_BLOCKS || numBlocks)
+                        numBlocks = 0xff;
+                    else
+                        numBlocks = tmp;
+                }
+                if (!numBlocks)
+                    numBlocks = 0xff;
+                tmp = *(uint32_t *)(buf + 20 - 16);
+                if (tmp < MAX_BLOCKS) {
+                    uint8_t x = tmp;
+                    if ((writtenMask[x >> 3] & (1 << (x & 7))) == 0) {
+                        writtenMask[x >> 3] |= (1 << (x & 7));
+                        numBlocksWritten++;
+                    }
+                }
                 continue;
+            }
+
+            if (numBlocks == 0) {
+                logChar('R');
+                targetReset();
             }
 
             if (!numPages)
                 continue;
-
-            if (numBlocksWritten == 0) {
-                logChar('R');
-                targetReset();
-            }
 
             if (((bufno - 2) & (BLOCKS_PAR_PAGE - 1)) == 0) {
                 Serial_SendByte(STK_LOAD_ADDRESS);
@@ -145,6 +177,15 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
     /* If the endpoint is empty, clear it ready for the next packet from the host */
     if (!(Endpoint_IsReadWriteAllowed()))
         Endpoint_ClearOUT();
+
+    if (numBlocks && numBlocks != 0xff && numBlocksWritten >= numBlocks) {
+        // reboot target
+        Serial_SendByte('Q');
+        Serial_SendByte(CRC_EOP);
+        // don't wait for response
+        // and reboot ourselves soon
+        wdt_enable(WDTO_60MS);
+    }
 }
 
 typedef struct {

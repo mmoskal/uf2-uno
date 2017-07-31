@@ -23,16 +23,14 @@ static void checkFlush(void) {
         hidSendCore();
 }
 
-void hidWrite(const void *ptr0, uint8_t size) {
-    const uint8_t *ptr = ptr0;
+void hidWrite(const void *ptr, uint8_t size) {
     while (size--) {
-        hidBuffer[++hidBuffer[0]] = *ptr++;
+        hidBuffer[++hidBuffer[0]] = *(uint8_t*)ptr++;
         checkFlush();
     }
 }
 
-void hidWrite_P(const void *ptr0, uint8_t size) {
-    const uint8_t *ptr = ptr0;
+void hidWrite_P(const void *ptr, uint8_t size) {
     while (size--) {
         hidBuffer[++hidBuffer[0]] = pgm_read_byte(ptr++);
         checkFlush();
