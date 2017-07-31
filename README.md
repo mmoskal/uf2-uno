@@ -27,6 +27,8 @@ I'm using 4.9.
 
 ## Installing
 
+Check out [binary releases](https://github.com/mmoskal/uf2-uno/releases).
+
 * place the ATmega in DFU update mode by shorting two pins sticking out closest to the USB plug
 * under macOS or Linux install `dfu-programer` and run `make burn`
 * under Windows use [Atmel FLIP](http://www.atmel.com/tools/flip.aspx)
