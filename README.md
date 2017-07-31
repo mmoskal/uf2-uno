@@ -10,14 +10,14 @@ running on the main ATmega328p chip.
 The mass storage interface accepts files in [UF2](https://github.com/microsoft/uf2)
 format. The new format (i.e., not `.hex` and not `.bin`) is necessary to implement
 a reliable mass storage flashing in the 512 bytes of RAM of the ATmega. The UF2 repository
-contains some conversion tools.
+contains some conversion tools, and recent PXT versions have `pxt hex2uf2` command.
 
 ## Building
 
 ```
 $ git clone https://github.com/abcminiuser/lufa lufa
 $ cd lufa/Projects
-$ git clone https://github.com/microsoft/uf2-uno
+$ git clone https://github.com/mmoskal/uf2-uno
 $ cd uf2-uno
 $ make
 ```
@@ -43,6 +43,9 @@ The firmware exposes a custom raw HID interface, implementing a small subset of
 [HF2 protocol](https://github.com/microsoft/uf2/blob/master/hf2.md), in particular
 the serial-forwarding parts. The serial can be accessed using the C-based
 `uf2tool` or using [PXT command line](https://makecode.com/cli).
+
+On the Arduino side you have to use `Serial.init(115200);` in `setup()`,
+and not any other baud rate. 
 
 ## License
 
