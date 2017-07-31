@@ -51,7 +51,8 @@ and not any other baud rate.
 
 MIT
 
-This code is based on the Mass Storage example from [LUFA](),
-has a few lines and the RingBuffer from the [Arduino USBSERIAL firmware](),
+This code is based on the Mass Storage example from [LUFA](http://www.fourwalledcubicle.com/LUFA.php),
+has a few lines and the RingBuffer from the 
+[Arduino USBSERIAL firmware](https://github.com/arduino/Arduino/tree/master/hardware/arduino/avr/firmwares/atmegaxxu2/arduino-usbserial),
 and lifts some code from the [SAMD21 UF2 Bootloader](https://github.com/microsoft/uf2-samd21).
 All these are MIT licensed.
