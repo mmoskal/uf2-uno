@@ -3,9 +3,17 @@
 
 const uint8_t uf2magic[] PROGMEM = "UF2\nWQ]\x9E";
 
+#define PAGE_SHIFT 7
+
 #if SPM_PAGESIZE != 128
 #error unsupported page size
 #endif
+
+#if (SPM_PAGESIZE >> PAGE_SHIFT) != 1
+#error unsupported page size
+#endif
+
+#define BLOCKS_PAR_PAGE (SPM_PAGESIZE / MASS_STORAGE_IO_EPSIZE)
 
 #define CRC_EOP 0x20          // 'SPACE'
 #define STK_PROG_PAGE 0x64    // 'd'
@@ -44,9 +52,10 @@ static void finishPacket(void) {
 void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceInfo,
                                   const uint32_t BlockAddress, uint16_t TotalBlocks) {
     uint8_t buf[MASS_STORAGE_IO_EPSIZE];
-    uint8_t state = 0;
+    uint8_t isUF2 = 0;
     uint16_t addr = 0;
     uint8_t i;
+    uint8_t numPages = 0;
 
     /* Wait until endpoint is ready before continuing */
     if (Endpoint_WaitUntilReady())
@@ -74,34 +83,40 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
                 return;
 
             if (bufno == 0) {
-                state = 1;
+                isUF2 = 1;
                 for (i = 0; i < 8; ++i) {
                     if (buf[i] != pgm_read_byte(uf2magic + i)) {
-                        state = 0;
+                        isUF2 = 0;
                         break;
                     }
                 }
                 if (buf[8] & 1)
-                    state = 0; // UF2 do not flash flag
+                    isUF2 = 0; // UF2 do not flash flag
 
                 addr = *(uint16_t *)(buf + 12);
                 // STK500 address is in words, not bytes
                 addr >>= 1;
             }
 
-            if (!state)
+            if (!isUF2)
+                continue;
+
+            if (bufno == 1) {
+                numPages = *(uint16_t *)(buf + 0) >> PAGE_SHIFT;
+                logChar('W');
+                numBlocksWritten++;
+                continue;
+            }
+
+            if (!numPages)
                 continue;
 
             if (numBlocksWritten == 0) {
                 logChar('R');
                 targetReset();
             }
-            if (bufno == 0) {
-                logChar('W');
-                numBlocksWritten++;
-            }
 
-            if (bufno == 2 || bufno == 10) {
+            if (((bufno - 2) & (BLOCKS_PAR_PAGE - 1)) == 0) {
                 Serial_SendByte(STK_LOAD_ADDRESS);
                 Serial_SendByte(addr & 0xff); // little endian
                 Serial_SendByte(addr >> 8);
@@ -114,12 +129,12 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
                 Serial_SendByte('F');
             }
 
-            if (2 <= bufno && bufno <= 17)
-                for (i = 0; i < MASS_STORAGE_IO_EPSIZE; ++i)
-                    Serial_SendByte(buf[i]);
+            for (i = 0; i < MASS_STORAGE_IO_EPSIZE; ++i)
+                Serial_SendByte(buf[i]);
 
-            if (bufno == 9 || bufno == 17) {
+            if (((bufno - 2) & (BLOCKS_PAR_PAGE - 1)) == BLOCKS_PAR_PAGE - 1) {
                 finishPacket();
+                numPages--;
             }
         }
 
