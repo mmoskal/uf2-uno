@@ -19,7 +19,7 @@ F_USB        = $(F_CPU)
 OPTIMIZATION = s
 TARGET       = uf2uno
 SRC          = $(TARGET).c hid.c Descriptors.c Lib/DataflashManager.c Lib/SCSI.c $(LUFA_SRC_USB) $(LUFA_SRC_USBCLASS)
-LUFA_PATH    = ../../../../LUFA
+LUFA_PATH    = ../../LUFA
 CC_FLAGS     = -DUSE_LUFA_CONFIG_HEADER -IConfig/ -Wall -Werror -W -Wno-unused-parameter
 LD_FLAGS     =
 
