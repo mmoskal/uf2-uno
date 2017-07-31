@@ -4,6 +4,7 @@
 uint8_t hidBuffer[HID_IO_EPSIZE];
 
 static void hidSendCore(void) {
+    Endpoint_SelectEndpoint(HID_IN_EPADDR);
     Endpoint_WaitUntilReady();
     while (!Endpoint_IsINReady())
         ;
@@ -25,7 +26,7 @@ static void checkFlush(void) {
 
 void hidWrite(const void *ptr, uint8_t size) {
     while (size--) {
-        hidBuffer[++hidBuffer[0]] = *(uint8_t*)ptr++;
+        hidBuffer[++hidBuffer[0]] = *(uint8_t *)ptr++;
         checkFlush();
     }
 }
@@ -64,6 +65,8 @@ void HID_Task(void) {
             for (uint8_t i = 0; i < HID_IO_EPSIZE; ++i)
                 data[i] = Endpoint_Read_8();
 
+            Endpoint_ClearOUT();
+
             if (data[0] & 0x80) {
                 data[0] &= 63;
                 for (uint8_t i = 0; i < data[0]; ++i) {
@@ -93,9 +96,6 @@ void HID_Task(void) {
                 hidSendReply();
             }
         }
-
-        /* Finalize the stream transfer to send the last packet */
-        Endpoint_ClearOUT();
     }
 
     Endpoint_SelectEndpoint(HID_IN_EPADDR);
