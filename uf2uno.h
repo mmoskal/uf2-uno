@@ -92,7 +92,7 @@ extern uint8_t needsFlush;
 
 #define UF2_VERSION "v0.0.0 U"
 #define PRODUCT_NAME "Arduino Uno"
-#define BOARD_ID "ATmega328p-Uno-r3"
+#define BOARD_ID "ATmega328p-UnoR3-v0"
 #define VOLUME_LABEL "UNO BOOT"
 #define INDEX_URL "https://pxt.io"
 
