@@ -90,7 +90,7 @@ extern RingBuff_t USARTtoUSB_Buffer;
 extern uint8_t needsFlush;
 
 
-#define UF2_VERSION "v0.0.0 U"
+#define UF2_VERSION "v0.1.0 U"
 #define PRODUCT_NAME "Arduino Uno"
 #define BOARD_ID "ATmega328p-UnoR3-v0"
 #define VOLUME_LABEL "UNO BOOT"
