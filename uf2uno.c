@@ -78,7 +78,7 @@ volatile struct
 } PulseMSRemaining;
 
 void logChar(char c) {
- 	// RingBuffer_Insert(&USARTtoUSB_Buffer, c);
+	// RingBuffer_Insert(&USARTtoUSB_Buffer, c);
 }
 
 /** Main program entry point. This routine contains the overall program flow, including initial
@@ -102,7 +102,7 @@ int main(void)
 		{
 			TIFR0 |= (1 << TOV0);
 
-			if (USARTtoUSB_Buffer.Count) {
+			if (BufferCount) {
 				//LEDs_TurnOnLEDs(LEDMASK_TX);
 				//PulseMSRemaining.TxLEDPulse = TX_RX_LED_PULSE_MS;
 			}

@@ -34,7 +34,6 @@ static void targetReset(void) {
     AVR_RESET_LINE_PORT &= ~AVR_RESET_LINE_MASK;
     _delay_ms(10);
     AVR_RESET_LINE_PORT |= AVR_RESET_LINE_MASK;
-    _delay_ms(600); // so it stops blinking
 }
 
 extern volatile uint8_t recv_STK_OK;
@@ -42,6 +41,8 @@ extern volatile uint8_t recv_STK_OK;
 static void finishPacket(void) {
     recv_STK_OK = 0;
     Serial_SendByte(CRC_EOP);
+
+    logChar('P');
 
     wdt_enable(WDTO_250MS);
 
@@ -79,7 +80,7 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
 
     while (TotalBlocks) {
         logChar('w');
-
+        
         for (uint8_t bufno = 0; bufno < 512 / MASS_STORAGE_IO_EPSIZE; ++bufno) {
             /* Check if the endpoint is currently empty */
             if (!(Endpoint_IsReadWriteAllowed())) {
@@ -143,6 +144,7 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
             if (numBlocks == 0) {
                 logChar('R');
                 targetReset();
+                _delay_ms(600); // so it stops blinking
             }
 
             if (!numPages)
@@ -177,11 +179,14 @@ void DataflashManager_WriteBlocks(USB_ClassInfo_MS_Device_t *const MSInterfaceIn
     /* If the endpoint is empty, clear it ready for the next packet from the host */
     if (!(Endpoint_IsReadWriteAllowed()))
         Endpoint_ClearOUT();
-
+    
     if (numBlocks && numBlocks != 0xff && numBlocksWritten >= numBlocks) {
+        numBlocksWritten = 0;
+        logChar('0'); 
         // reboot target
-        Serial_SendByte('Q');
-        Serial_SendByte(CRC_EOP);
+        //Serial_SendByte('Q');
+        //Serial_SendByte(CRC_EOP);
+        targetReset(); // we do a slow reboot of target, so we manage to reset ourselves before it wakes up
         // don't wait for response
         // and reboot ourselves soon
         wdt_enable(WDTO_60MS);
