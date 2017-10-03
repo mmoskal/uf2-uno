@@ -69,10 +69,9 @@
 		 */
 		typedef struct
 		{
-			RingBuff_Data_t  Buffer[BUFFER_SIZE]; /**< Internal ring buffer data, referenced by the buffer pointers. */
-			RingBuff_Data_t* In; /**< Current storage location in the circular buffer */
-			RingBuff_Data_t* Out; /**< Current retrieval location in the circular buffer */
-			RingBuff_Count_t Count;
+			RingBuff_Data_t  Buffer[BUFFER_SIZE + 1]; /**< Internal ring buffer data, referenced by the buffer pointers. */
+			RingBuff_Count_t In; /**< Current storage location in the circular buffer */
+			RingBuff_Count_t Out; /**< Current retrieval location in the circular buffer */
 		} RingBuff_t;
 	
 	/* Inline Functions: */
@@ -84,11 +83,6 @@
 		 */
 		static inline void RingBuffer_InitBuffer(RingBuff_t* const Buffer)
 		{
-			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-			{
-				Buffer->In  = Buffer->Buffer;
-				Buffer->Out = Buffer->Buffer;
-			}
 		}
 		
 		/** Retrieves the minimum number of bytes stored in a particular buffer. This value is computed
@@ -110,7 +104,11 @@
 			
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 			{
-				Count = Buffer->Count;
+				if (Buffer->In < Buffer->Out) {
+					Count = BUFFER_SIZE + 1 + Buffer->In - Buffer->Out;
+				} else {
+					Count = Buffer->In - Buffer->Out;
+				}
 			}
 			
 			return Count;
@@ -158,14 +156,12 @@
 		static inline void RingBuffer_Insert(RingBuff_t* const Buffer,
 		                                     const RingBuff_Data_t Data)
 		{
-			*Buffer->In = Data;
-			
-			if (++Buffer->In == &Buffer->Buffer[BUFFER_SIZE])
-			  Buffer->In = Buffer->Buffer;
-
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 			{
-				Buffer->Count++;
+				Buffer->Buffer[Buffer->In] = Data;
+			
+				if (++Buffer->In == BUFFER_SIZE + 1)
+					Buffer->In = 0;
 			}
 		}
 
@@ -181,14 +177,17 @@
 		 */
 		static inline RingBuff_Data_t RingBuffer_Remove(RingBuff_t* const Buffer)
 		{
-			RingBuff_Data_t Data = *Buffer->Out;
-			
-			if (++Buffer->Out == &Buffer->Buffer[BUFFER_SIZE])
-			  Buffer->Out = Buffer->Buffer;
+			RingBuff_Data_t Data = 'X';
 
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 			{
-				Buffer->Count--;
+				if (Buffer->In != Buffer->Out) {
+					Data = Buffer->Buffer[Buffer->Out];
+					Buffer->Buffer[Buffer->Out] = 'Y';
+				
+					if (++Buffer->Out == BUFFER_SIZE + 1)
+						Buffer->Out = 0;
+				}
 			}
 			
 			return Data;
