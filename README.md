@@ -12,6 +12,10 @@ format. The new format (i.e., not `.hex` and not `.bin`) is necessary to impleme
 a reliable mass storage flashing in the 512 bytes of RAM of the ATmega. The UF2 repository
 contains some conversion tools, and recent PXT versions have `pxt hex2uf2` command.
 
+There's now a [blog post](https://makecode.com/blog/uf2-for-arduino-uno) up about how it 
+works and how it came about.
+
+
 ## Building
 
 ```
